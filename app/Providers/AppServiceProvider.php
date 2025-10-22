@@ -2,6 +2,7 @@
 
 namespace App\Providers;
 
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\ServiceProvider;
 
 class AppServiceProvider extends ServiceProvider
@@ -19,6 +20,12 @@ class AppServiceProvider extends ServiceProvider
      */
     public function boot(): void
     {
-        //
+        if (app()->environment('local', 'development')) {
+            DB::listen(function ($query) {
+                if ($query->time > 100) {
+                    logger()->channel('performance')->debug($query->sql, $query->bindings);
+                }
+            });
+        }
     }
 }
