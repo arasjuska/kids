@@ -3,15 +3,17 @@
 namespace App\Models;
 
 use App\Enums\AddressTypeEnum;
+use App\Enums\AccuracyLevelEnum;
+use App\Observers\AddressObserver;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Query\Expression;
-use Illuminate\Support\Str;
 
 class Address extends Model
 {
     protected $fillable = [
         'formatted_address',
+        'short_address_line',
         'street_name',
         'street_number',
         'city',
@@ -26,6 +28,13 @@ class Address extends Model
         'description',
         'raw_api_response',
         'is_virtual',
+        'geocoding_provider',
+        'accuracy_level',
+        'quality_tier',
+        'verified_at',
+        'fields_refreshed_at',
+        'manually_overridden',
+        'source_locked',
         'provider',
         'provider_place_id',
         'osm_type',
@@ -38,22 +47,20 @@ class Address extends Model
         'longitude' => 'float',
         'confidence_score' => 'float',
         'address_type' => AddressTypeEnum::class,
+        'accuracy_level' => AccuracyLevelEnum::class,
         'is_virtual' => 'boolean',
         'raw_api_response' => 'array',
         'osm_id' => 'integer',
+        'quality_tier' => 'integer',
+        'verified_at' => 'datetime',
+        'fields_refreshed_at' => 'datetime',
+        'manually_overridden' => 'boolean',
+        'source_locked' => 'boolean',
     ];
 
     protected static function booted(): void
     {
-        static::saving(function (self $address): void {
-            $address->address_signature = self::makeAddressSignature(
-                $address->street_name,
-                $address->street_number,
-                $address->city,
-                $address->country_code,
-                $address->postal_code
-            );
-        });
+        static::observe(AddressObserver::class);
     }
 
     /**
@@ -132,47 +139,5 @@ class Address extends Model
     public function places()
     {
         return $this->hasMany(Place::class);
-    }
-
-    private static function makeAddressSignature(
-        ?string $streetName,
-        ?string $streetNumber,
-        ?string $city,
-        ?string $countryCode,
-        ?string $postalCode
-    ): ?string {
-        $parts = [
-            self::normalizeSignaturePart($streetName),
-            self::normalizeSignaturePart($streetNumber),
-            self::normalizeSignaturePart($city),
-            self::normalizeSignaturePart($countryCode, true),
-            self::normalizeSignaturePart($postalCode, false, false),
-        ];
-
-        $signatureString = implode('|', $parts);
-
-        if ($signatureString === '||||') {
-            return null;
-        }
-
-        return hash('sha256', $signatureString, true);
-    }
-
-    private static function normalizeSignaturePart(
-        ?string $value,
-        bool $uppercase = false,
-        bool $lowercase = true
-    ): string {
-        $value = trim((string) ($value ?? ''));
-
-        if ($value === '') {
-            return '';
-        }
-
-        if ($uppercase) {
-            return Str::upper($value);
-        }
-
-        return $lowercase ? Str::lower($value) : $value;
     }
 }

@@ -2,6 +2,7 @@
 
 namespace App\Providers;
 
+use App\Support\AddressNormalizer;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\ServiceProvider;
 
@@ -12,7 +13,7 @@ class AppServiceProvider extends ServiceProvider
      */
     public function register(): void
     {
-        //
+        $this->app->singleton(AddressNormalizer::class);
     }
 
     /**
