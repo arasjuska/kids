@@ -4,11 +4,12 @@ namespace App\Enums;
 
 enum AddressStateEnum: string
 {
-    case IDLE = 'idle';
-    case SEARCHING = 'searching';
-    case SUGGESTIONS = 'suggestions';
-    case CONFIRMED = 'confirmed';
-    case MANUAL = 'manual';
+    case IDLE = 'idle';              // laukiam įvedimo
+    case SEARCHING = 'searching';    // vyksta paieška
+    case SUGGESTIONS = 'suggestions';// rodom pasiūlymus
+    case NO_RESULTS = 'no_results';  // paieška negrąžino rezultatų
+    case MANUAL = 'manual';          // rankinis redagavimas
+    case CONFIRMED = 'confirmed';    // pasirinktas galutinis adresas
     case ERROR = 'error';
 
     public function label(): string
@@ -17,29 +18,10 @@ enum AddressStateEnum: string
             self::IDLE => 'Laukiama įvesties',
             self::SEARCHING => 'Ieškoma...',
             self::SUGGESTIONS => 'Rodyti pasiūlymai',
-            self::CONFIRMED => 'Adresas patvirtintas',
+            self::NO_RESULTS => 'Rezultatų nerasta',
             self::MANUAL => 'Rankinis režimas',
+            self::CONFIRMED => 'Adresas patvirtintas',
             self::ERROR => 'Klaida',
         };
-    }
-
-    public function canShowMap(): bool
-    {
-        return in_array($this, [self::CONFIRMED, self::MANUAL]);
-    }
-
-    public function canShowSuggestions(): bool
-    {
-        return $this === self::SUGGESTIONS;
-    }
-
-    public function canShowManualFields(): bool
-    {
-        return $this === self::MANUAL;
-    }
-
-    public function isLoading(): bool
-    {
-        return $this === self::SEARCHING;
     }
 }

@@ -35,4 +35,24 @@ return [
         ],
     ],
 
+    // OpenStreetMap Nominatim service configuration
+    'nominatim' => [
+        // Base URL for the API
+        'url' => env('NOMINATIM_URL', 'https://nominatim.openstreetmap.org'),
+
+        // Default ISO country code for searches (lowercase)
+        'default_country' => env('NOMINATIM_DEFAULT_COUNTRY', 'lt'),
+
+        // Cache duration in minutes
+        'cache_duration' => (int) env('NOMINATIM_CACHE_MINUTES', 1440),
+
+        // Identify your application per Nominatim usage policy.
+        // Include a contact email in the UA or separate header.
+        'user_agent' => env('NOMINATIM_USER_AGENT', env('APP_NAME', 'Laravel App')),
+        'email' => env('NOMINATIM_EMAIL', null),
+
+        // Dev helper: when true and app.debug, return a small fake dataset on failures
+        'fake_on_fail' => (bool) env('NOMINATIM_FAKE_ON_FAIL', false),
+    ],
+
 ];

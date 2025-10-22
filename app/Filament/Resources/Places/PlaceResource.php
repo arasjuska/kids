@@ -11,10 +11,9 @@ use App\Models\Place;
 use App\Services\AddressFormStateManager;
 use BackedEnum;
 use Filament\Resources\Resource;
-// Importas pakeistas į teisingą 'Filament\Forms\Form'.
-use Filament\Forms\Form; 
-// Turi būti importuota, nes to reikalauja tėvinės klasės signatūra
-use Filament\Schemas\Schema; 
+// PAŠALINTAS: Naudojant senesnę Filament versiją, 'Filament\Forms\Form' importas sukelia klaidą.
+// use Filament\Forms\Form;
+use Filament\Schemas\Schema; // Priverstinis importas, kad atitiktų tėvinės klasės signatūrą
 use Filament\Support\Icons\Heroicon;
 use Filament\Tables\Table;
 
@@ -24,16 +23,19 @@ class PlaceResource extends Resource
 
     protected static string|BackedEnum|null $navigationIcon = Heroicon::OutlinedRectangleStack;
 
-    // PATAISYMAS: Pakeista signatūra į Schema, kad atitiktų Filament\Resources\Resource tėvinės klasės reikalavimą.
-    public static function form(Schema $schema): Schema 
+    /**
+     * Taisymas: Grąžinama signatūra į Schema $schema, kad atitiktų tėvinės klasės signatūrą
+     * ir išvengtume 'Filament\Forms\Form' nepasiekiamumo klaidos.
+     * @param Schema $schema (arba Form $form, bet dėl klaidos paliekame Schema)
+     * @return Schema
+     */
+    public static function form(Schema $schema): Schema
     {
         // 1. Inicijuojame AddressFormStateManager (per Laravel Service Container)
         $addressManager = app(AddressFormStateManager::class);
 
-        // Naudojame $schema kintamąjį, kuris šiuo atveju veikia kaip Form objektas
-        return $schema
-            // 2. Iškviečiame make() metodą, kad gautume komponentų masyvą
-            ->schema(PlaceForm::make($addressManager));
+        // 2. Taisymas: Kviečiamas esamas 'configure' metodas ir perduodamas $addressManager.
+        return PlaceForm::configure($schema, $addressManager);
     }
 
     public static function table(Table $table): Table

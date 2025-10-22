@@ -13,6 +13,12 @@ import intersect from "@alpinejs/intersect"; // @see https://alpinejs.dev/plugin
 */
 import SimpleBar from "simplebar";
 
+import L from "leaflet";
+import "leaflet/dist/leaflet.css";
+import markerIcon2x from "leaflet/dist/images/marker-icon-2x.png";
+import markerIcon from "leaflet/dist/images/marker-icon.png";
+import markerShadow from "leaflet/dist/images/marker-shadow.png";
+
 /*
     Code highlighting library
     Just for demo purpose only for highlighting code
@@ -94,6 +100,20 @@ hljs.configure({ ignoreUnescapedHTML: true });
 // Register plugin image preview for filepond
 FilePond.registerPlugin(FilePondPluginImagePreview);
 
+try {
+    // eslint-disable-next-line no-underscore-dangle
+    delete L.Icon.Default.prototype._getIconUrl;
+    L.Icon.Default.mergeOptions({
+        iconRetinaUrl: markerIcon2x,
+        iconUrl: markerIcon,
+        shadowUrl: markerShadow,
+    });
+} catch (error) {
+    console.warn('[Leaflet] Failed to configure default marker icons.', error);
+}
+
+window.L = L;
+
 window.hljs = hljs;
 window.dayjs = dayjs;
 window.SimpleBar = SimpleBar;
@@ -105,6 +125,7 @@ window.FilePond = FilePond;
 window.flatpickr = flatpickr;
 window.Quill = Quill;
 window.Tom = Tom;
+
 
 window.Alpine = Alpine;
 window.helpers = helpers;
