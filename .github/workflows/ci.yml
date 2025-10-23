@@ -28,6 +28,8 @@ jobs:
           key: composer-${{ hashFiles('**/composer.lock') }}
       - run: composer install --no-interaction --prefer-dist --no-progress
       - run: cp .env.example .env && php artisan key:generate
+      - run: |
+          mysql -h 127.0.0.1 -u root -psecret -e "CREATE DATABASE IF NOT EXISTS testing CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci; GRANT ALL PRIVILEGES ON testing.* TO 'app'@'%'; FLUSH PRIVILEGES;"
       - run: php artisan config:clear && php artisan cache:clear
       - run: php artisan migrate:fresh --seed --ansi
       - run: php artisan test --ansi
