@@ -40,6 +40,7 @@ class Address extends Model
         'osm_type',
         'osm_id',
         'address_signature',
+        'requires_verification',
     ];
 
     protected $casts = [
@@ -51,11 +52,12 @@ class Address extends Model
         'is_virtual' => 'boolean',
         'raw_api_response' => 'array',
         'osm_id' => 'integer',
-        'quality_tier' => 'integer',
+        'quality_tier' => 'string',
         'verified_at' => 'datetime',
         'fields_refreshed_at' => 'datetime',
         'manually_overridden' => 'boolean',
         'source_locked' => 'boolean',
+        'requires_verification' => 'boolean',
     ];
 
     protected static function booted(): void

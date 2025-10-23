@@ -37,11 +37,12 @@ return new class extends Migration
             $table->string('geocoding_provider', 32)->nullable();
             $table->enum('accuracy_level', array_map(fn ($case) => $case->value, AccuracyLevelEnum::cases()))
                 ->default(AccuracyLevelEnum::UNKNOWN->value);
-            $table->unsignedTinyInteger('quality_tier')->nullable();
+            $table->string('quality_tier', 32)->nullable();
             $table->timestamp('verified_at')->nullable();
             $table->timestamp('fields_refreshed_at')->nullable();
             $table->boolean('manually_overridden')->default(false)->index();
             $table->boolean('source_locked')->default(false)->index();
+            $table->boolean('requires_verification')->default(false)->index();
             $table->text('description')->nullable();
             $table->json('raw_api_response')->nullable();
             $table->boolean('is_virtual')->default(false)->index();
@@ -57,17 +58,21 @@ return new class extends Migration
             $table->unique(['osm_type', 'osm_id'], 'addresses_osm_unique');
         });
 
-        DB::statement(<<<'SQL'
-            ALTER TABLE addresses
-            ADD COLUMN location POINT GENERATED ALWAYS AS (ST_SRID(POINT(longitude, latitude), 4326)) STORED NOT NULL
-            AFTER longitude
-        SQL);
+        $driver = Schema::getConnection()->getDriverName();
 
-        Schema::table('addresses', function (Blueprint $table): void {
-            $table->spatialIndex('location', 'sx_addresses_location');
-        });
+        if ($driver !== 'sqlite') {
+            DB::statement(<<<'SQL'
+                ALTER TABLE addresses
+                ADD COLUMN location POINT GENERATED ALWAYS AS (ST_SRID(POINT(longitude, latitude), 4326)) STORED NOT NULL
+                AFTER longitude
+            SQL);
 
-        DB::statement('ALTER TABLE addresses MODIFY address_signature BINARY(32) NULL');
+            Schema::table('addresses', function (Blueprint $table): void {
+                $table->spatialIndex('location', 'sx_addresses_location');
+            });
+
+            DB::statement('ALTER TABLE addresses MODIFY address_signature BINARY(32) NULL');
+        }
 
         Schema::table('addresses', function (Blueprint $table): void {
             $table->unique('address_signature', 'addresses_signature_unique');
