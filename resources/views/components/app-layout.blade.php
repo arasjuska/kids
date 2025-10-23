@@ -16,7 +16,13 @@
     </title>
 
     <!-- CSS & JS Assets -->
-    @vite(['resources/css/app.css', 'resources/js/app.js'])
+    @php
+        $hasViteBuild = file_exists(public_path('build/manifest.json')) || file_exists(public_path('hot'));
+    @endphp
+
+    @if ($hasViteBuild)
+        @vite(['resources/css/app.css', 'resources/js/app.js'])
+    @endif
 
     <!-- Fonts -->
     <link rel="preconnect" href="https://fonts.googleapis.com" />
