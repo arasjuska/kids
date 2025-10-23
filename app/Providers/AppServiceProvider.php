@@ -4,6 +4,8 @@ namespace App\Providers;
 
 use App\Support\AddressNormalizer;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\File;
+use Illuminate\Support\Facades\View;
 use Illuminate\Support\ServiceProvider;
 
 class AppServiceProvider extends ServiceProvider
@@ -28,5 +30,11 @@ class AppServiceProvider extends ServiceProvider
                 }
             });
         }
+
+        View::share(
+            'shouldIncludeViteAssets',
+            ! app()->runningUnitTests() &&
+            (File::exists(public_path('build/manifest.json')) || File::exists(public_path('hot')))
+        );
     }
 }

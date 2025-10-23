@@ -16,11 +16,7 @@
     </title>
 
     <!-- CSS & JS Assets -->
-    @php
-        $hasViteBuild = file_exists(public_path('build/manifest.json')) || file_exists(public_path('hot'));
-    @endphp
-
-    @if ($hasViteBuild)
+    @if (!empty($shouldIncludeViteAssets))
         @vite(['resources/css/app.css', 'resources/js/app.js'])
     @endif
 
