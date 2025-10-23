@@ -16,6 +16,7 @@ use Illuminate\Cookie\Middleware\EncryptCookies;
 use Illuminate\Foundation\Http\Middleware\VerifyCsrfToken;
 use Illuminate\Routing\Middleware\SubstituteBindings;
 use Illuminate\Session\Middleware\StartSession;
+use Illuminate\Support\Facades\File;
 use Illuminate\Support\Facades\Vite;
 use Illuminate\View\Middleware\ShareErrorsFromSession;
 
@@ -23,17 +24,13 @@ class AdminPanelProvider extends PanelProvider
 {
     public function panel(Panel $panel): Panel
     {
-        return $panel
+        $panel = $panel
             ->default()
             ->id('admin')
             ->path('admin')
             ->login()
             ->colors([
                 'primary' => Color::Amber,
-            ])
-            ->viteTheme('resources/css/filament/admin/theme.css')
-            ->assets([
-                Js::make('leaflet', Vite::asset('resources/js/filament/leaflet.js'))->module(),
             ])
             ->discoverResources(in: app_path('Filament/Resources'), for: 'App\\Filament\\Resources')
             ->discoverPages(in: app_path('Filament/Pages'), for: 'App\\Filament\\Pages')
@@ -55,5 +52,21 @@ class AdminPanelProvider extends PanelProvider
             ->authMiddleware([
                 Authenticate::class,
             ]);
+
+        // Use Vite assets only when the manifest exists (e.g. after npm run build).
+        if ($this->viteManifestExists()) {
+            $panel = $panel
+                ->viteTheme('resources/css/filament/admin/theme.css')
+                ->assets([
+                    Js::make('leaflet', Vite::asset('resources/js/filament/leaflet.js'))->module(),
+                ]);
+        }
+
+        return $panel;
+    }
+
+    private function viteManifestExists(): bool
+    {
+        return File::exists(public_path('build/manifest.json'));
     }
 }
