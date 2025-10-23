@@ -66,10 +66,7 @@ class AdminPanelProvider extends PanelProvider
 
     private function shouldRegisterViteAssets(): bool
     {
-        if (! app()->runningInConsole()) {
-            return true;
-        }
-
-        return File::exists(public_path('build/manifest.json'));
+        return File::exists(public_path('build/manifest.json'))
+            || File::exists(public_path('hot'));
     }
 }
