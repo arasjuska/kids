@@ -10,6 +10,7 @@ use Illuminate\Cache\Repository as CacheRepository;
 use Illuminate\Contracts\Cache\Factory as CacheFactory;
 use Illuminate\Http\Client\RequestException;
 use Illuminate\Support\Carbon;
+use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\RateLimiter;
 use Illuminate\Support\Str;
@@ -17,6 +18,8 @@ use Throwable;
 
 final class GeocodingService implements GeocodingServiceInterface
 {
+    private const CACHE_VERSION = 'v2';
+
     private CacheRepository $cache;
 
     public function __construct(
@@ -29,8 +32,8 @@ final class GeocodingService implements GeocodingServiceInterface
 
     public function forward(string $query, ?string $countryCode = null): ?GeocodeResult
     {
-        $normalized = $this->normalizer->normalizeForwardQuery($query, $countryCode);
-        $cacheKey = $this->forwardKey($normalized['q'], $normalized['cc']);
+        $normalized = $this->normalizer->normalizeForwardQuery($query, $countryCode, true);
+        $cacheKey = $this->forwardKey($normalized['key'], $normalized['cc']);
         $startedAt = microtime(true);
 
         if ($cached = $this->cache->get($cacheKey)) {
@@ -45,7 +48,11 @@ final class GeocodingService implements GeocodingServiceInterface
             return null;
         }
 
-        $result = $this->throttle(fn () => $this->callProvider(fn () => $this->provider->forward($normalized)));
+        $result = $this->throttle(fn () => $this->callProvider(fn () => $this->provider->forward([
+            'raw' => $normalized['raw'],
+            'q' => $normalized['q'],
+            'cc' => $normalized['cc'],
+        ])));
 
         if (! $result instanceof GeocodeResult) {
             return null;
@@ -89,6 +96,53 @@ final class GeocodingService implements GeocodingServiceInterface
         return $result;
     }
 
+    public function search(string $query, array $options = []): Collection
+    {
+        $country = $options['country_codes'] ?? null;
+        $limit = max(1, (int) ($options['limit'] ?? 8));
+
+        $normalized = $this->normalizer->normalizeForwardQuery($query, $country, true);
+        $cacheKey = $this->searchKey($normalized['key'], $normalized['cc'], $limit);
+        $startedAt = microtime(true);
+
+        if ($cached = $this->cache->get($cacheKey)) {
+            $this->logCache('search', 'hit', $cacheKey, $startedAt);
+            return collect($cached);
+        }
+
+        $this->logCache('search', 'miss', $cacheKey, $startedAt);
+
+        if ($this->breakerOpen()) {
+            $this->logBreaker('search', 'open');
+            return collect();
+        }
+
+        $raw = $this->throttle(function () use ($normalized, $limit, $options) {
+            return $this->callProviderRaw(fn () => $this->provider->search([
+                'raw' => $normalized['raw'],
+                'q' => $normalized['q'],
+                'cc' => $normalized['cc'],
+                'limit' => $limit,
+            ] + $options));
+        });
+
+        $rawResults = is_array($raw) ? array_slice($raw, 0, $limit) : [];
+
+        if (empty($rawResults)) {
+            return collect();
+        }
+
+        $mapped = collect($rawResults)
+            ->map(fn ($item) => $this->normalizer->mapProviderSuggestion((array) $item))
+            ->filter(fn ($item) => ! empty($item['place_id']))
+            ->values();
+
+        $this->cache->put($cacheKey, $mapped->all(), config('geocoding.cache.search_ttl'));
+        $this->logLatency('search', $cacheKey, $startedAt);
+
+        return $mapped;
+    }
+
     private function callProvider(callable $callback): ?GeocodeResult
     {
         $attempts = config('geocoding.http.retry.max_attempts');
@@ -123,7 +177,7 @@ final class GeocodingService implements GeocodingServiceInterface
         return null;
     }
 
-    private function throttle(callable $callback): ?GeocodeResult
+    private function throttle(callable $callback)
     {
         $key = 'geo:throttle:' . $this->provider->name();
         $max = max(1, config('geocoding.throttle.rps'));
@@ -158,18 +212,30 @@ final class GeocodingService implements GeocodingServiceInterface
         return false;
     }
 
-    private function forwardKey(string $query, ?string $country): string
+    private function forwardKey(string $canonicalQuery, ?string $country): string
     {
         return sprintf(
-            'geo:f:%s:%s',
+            'geo:%s:f:%s:%s',
+            self::CACHE_VERSION,
             $country ? Str::upper($country) : 'XX',
-            hash('sha1', $query)
+            hash('sha1', $canonicalQuery)
         );
     }
 
     private function reverseKey(float $lat, float $lon): string
     {
-        return sprintf('geo:r:%s:%s', $lat, $lon);
+        return sprintf('geo:%s:r:%s:%s', self::CACHE_VERSION, $lat, $lon);
+    }
+
+    private function searchKey(string $canonicalQuery, ?string $country, int $limit): string
+    {
+        return sprintf(
+            'geo:%s:s:%s:%s:%d',
+            self::CACHE_VERSION,
+            $country ? Str::upper($country) : 'XX',
+            hash('sha1', $canonicalQuery),
+            $limit
+        );
     }
 
     private function ttl(string $type): int
@@ -204,6 +270,40 @@ final class GeocodingService implements GeocodingServiceInterface
             'state' => $this->breakerState(),
             'failures' => $this->failureCount(),
         ]);
+    }
+
+    private function callProviderRaw(callable $callback): array
+    {
+        $attempts = config('geocoding.http.retry.max_attempts');
+        $delay = config('geocoding.http.retry.initial_delay_ms');
+
+        for ($i = 0; $i < $attempts; $i++) {
+            try {
+                $raw = $callback();
+
+                if ($raw === null) {
+                    return [];
+                }
+
+                $this->resetFailures();
+
+                return is_array($raw) ? $raw : [];
+            } catch (RequestException $e) {
+                if (! $this->shouldRetry($e)) {
+                    $this->recordFailure();
+                    throw $e;
+                }
+
+                $this->recordFailure();
+                usleep(($delay + random_int(0, 150)) * 1000);
+                $delay = min($delay * 2, config('geocoding.http.retry.max_delay_ms'));
+            } catch (Throwable $e) {
+                $this->recordFailure();
+                throw $e;
+            }
+        }
+
+        return [];
     }
 
     private function breakerOpen(): bool

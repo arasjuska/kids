@@ -30,6 +30,8 @@ final class GeocodeResult
             'longitude' => $this->longitude,
             'accuracy_level' => $this->accuracyLevel,
             'provider_confidence' => $this->providerConfidence,
+            'confidence' => $this->providerConfidence,
+            'confidence_score' => $this->providerConfidence,
             'meta' => $this->meta,
         ];
     }

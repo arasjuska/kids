@@ -30,6 +30,7 @@ return [
     'cache' => [
         'forward_ttl' => (int) env('GEOCODING_FORWARD_TTL', 60 * 60 * 24 * 14),
         'reverse_ttl' => (int) env('GEOCODING_REVERSE_TTL', 60 * 60 * 24 * 14),
+        'search_ttl' => (int) env('GEOCODING_SEARCH_TTL', 60 * 60 * 12),
     ],
 
     'rounding' => [

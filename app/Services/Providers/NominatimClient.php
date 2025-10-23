@@ -16,11 +16,11 @@ final class NominatimClient
         return 'nominatim';
     }
 
-    public function forward(array $normalized): ?array
+    public function forward(array $payload): ?array
     {
         $response = $this->request()->get('/search', array_filter([
-            'q' => $normalized['q'],
-            'countrycodes' => $normalized['cc'],
+            'q' => $payload['raw'] ?? $payload['q'] ?? null,
+            'countrycodes' => $payload['cc'] ?? null,
             'format' => 'json',
             'addressdetails' => 1,
             'limit' => 1,
@@ -29,6 +29,23 @@ final class NominatimClient
         $data = $response->throw()->json();
 
         return $data[0] ?? null;
+    }
+
+    public function search(array $payload, array $options = []): array
+    {
+        $limit = max(1, min((int) ($options['limit'] ?? 8), 15));
+
+        $response = $this->request()->get('/search', array_filter([
+            'q' => $payload['raw'] ?? $payload['q'] ?? null,
+            'countrycodes' => $payload['cc'] ?? null,
+            'format' => 'json',
+            'addressdetails' => 1,
+            'limit' => $limit,
+        ]));
+
+        $data = $response->throw()->json();
+
+        return is_array($data) ? $data : [];
     }
 
     public function reverse(float $lat, float $lon): ?array

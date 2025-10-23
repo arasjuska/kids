@@ -39,6 +39,47 @@ it('caches forward results', function () {
     Http::assertSentCount(1);
 });
 
+it('search returns normalized suggestions with caching', function () {
+    Http::fake([
+        '*' => Http::response([
+            [
+                'place_id' => 'p1',
+                'display_name' => 'Sodų g. 7, Vilnius',
+                'lat' => 54.0,
+                'lon' => 25.0,
+                'address' => [
+                    'road' => 'Sodų g.',
+                    'house_number' => '7',
+                    'city' => 'Vilnius',
+                    'postcode' => '01313',
+                    'country' => 'Lietuva',
+                    'country_code' => 'lt',
+                ],
+                'accuracy' => 'rooftop',
+                'confidence' => 0.8,
+            ],
+        ]),
+    ]);
+
+    $service = app(GeocodingServiceInterface::class);
+    $first = $service->search('  sodu g. 7  ', ['country_codes' => 'lt', 'limit' => 5]);
+
+    expect($first)->toHaveCount(1)
+        ->and($first->first())->toMatchArray([
+            'place_id' => 'p1',
+            'short_address_line' => 'Sodų g. 7, Vilnius',
+            'country_code' => 'LT',
+        ])
+        ->and($first->first()['confidence'])->toBeGreaterThanOrEqual(0.9);
+
+    Http::assertSentCount(1);
+
+    $second = $service->search('Sodų g. 7', ['country_codes' => 'LT', 'limit' => 5]);
+    expect($second)->toHaveCount(1);
+
+    Http::assertSentCount(1);
+});
+
 it('opens breaker after repeated failures', function () {
     Http::fake([
         '*' => Http::response([], 502),
