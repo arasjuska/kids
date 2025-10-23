@@ -2,6 +2,8 @@
 
 namespace App\Providers;
 
+use App\Contracts\GeocodingServiceInterface;
+use App\Services\GeocodingService;
 use App\Support\AddressNormalizer;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\File;
@@ -16,6 +18,7 @@ class AppServiceProvider extends ServiceProvider
     public function register(): void
     {
         $this->app->singleton(AddressNormalizer::class);
+        $this->app->singleton(GeocodingServiceInterface::class, GeocodingService::class);
     }
 
     /**

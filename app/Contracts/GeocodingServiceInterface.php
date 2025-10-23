@@ -2,27 +2,11 @@
 
 namespace App\Contracts;
 
-use Illuminate\Support\Collection;
+use App\Data\GeocodeResult;
 
 interface GeocodingServiceInterface
 {
-    /**
-     * Search for addresses by query
-     */
-    public function search(string $query, array $options = []): Collection;
+    public function forward(string $query, ?string $countryCode = null): ?GeocodeResult;
 
-    /**
-     * Reverse geocoding - get address by coordinates
-     */
-    public function reverse(float $lat, float $lng): ?object;
-
-    /**
-     * Check if service is available
-     */
-    public function isAvailable(): bool;
-
-    /**
-     * Get service name/identifier
-     */
-    public function getProviderName(): string;
+    public function reverse(float $lat, float $lon): ?GeocodeResult;
 }
