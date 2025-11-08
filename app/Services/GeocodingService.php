@@ -38,6 +38,7 @@ final class GeocodingService implements GeocodingServiceInterface
 
         if ($cached = $this->cache->get($cacheKey)) {
             $this->logCache('forward', 'hit', $cacheKey, $startedAt);
+
             return $cached;
         }
 
@@ -45,6 +46,7 @@ final class GeocodingService implements GeocodingServiceInterface
 
         if ($this->breakerOpen()) {
             $this->logBreaker('forward', 'open');
+
             return null;
         }
 
@@ -72,6 +74,7 @@ final class GeocodingService implements GeocodingServiceInterface
 
         if ($cached = $this->cache->get($cacheKey)) {
             $this->logCache('reverse', 'hit', $cacheKey, $startedAt);
+
             return $cached;
         }
 
@@ -79,6 +82,7 @@ final class GeocodingService implements GeocodingServiceInterface
 
         if ($this->breakerOpen()) {
             $this->logBreaker('reverse', 'open');
+
             return null;
         }
 
@@ -107,6 +111,7 @@ final class GeocodingService implements GeocodingServiceInterface
 
         if ($cached = $this->cache->get($cacheKey)) {
             $this->logCache('search', 'hit', $cacheKey, $startedAt);
+
             return collect($cached);
         }
 
@@ -114,6 +119,7 @@ final class GeocodingService implements GeocodingServiceInterface
 
         if ($this->breakerOpen()) {
             $this->logBreaker('search', 'open');
+
             return collect();
         }
 
@@ -179,7 +185,7 @@ final class GeocodingService implements GeocodingServiceInterface
 
     private function throttle(callable $callback)
     {
-        $key = 'geo:throttle:' . $this->provider->name();
+        $key = 'geo:throttle:'.$this->provider->name();
         $max = max(1, config('geocoding.throttle.rps'));
         $window = max(1, config('geocoding.throttle.window_seconds'));
 
@@ -194,6 +200,7 @@ final class GeocodingService implements GeocodingServiceInterface
         }
 
         $this->logBreaker('throttle', 'blocked');
+
         return null;
     }
 
@@ -321,6 +328,7 @@ final class GeocodingService implements GeocodingServiceInterface
         $openedAt = $this->cache->get($this->breakerOpenedKey());
         if ($openedAt && Carbon::parse($openedAt)->addSeconds(config('geocoding.breaker.open_seconds'))->isPast()) {
             $this->cache->put($this->breakerKey(), 'half-open', config('geocoding.breaker.open_seconds'));
+
             return false;
         }
 
@@ -334,17 +342,17 @@ final class GeocodingService implements GeocodingServiceInterface
 
     private function breakerKey(): string
     {
-        return 'geo:breaker:' . $this->provider->name() . ':state';
+        return 'geo:breaker:'.$this->provider->name().':state';
     }
 
     private function breakerOpenedKey(): string
     {
-        return 'geo:breaker:' . $this->provider->name() . ':opened_at';
+        return 'geo:breaker:'.$this->provider->name().':opened_at';
     }
 
     private function failureKey(): string
     {
-        return 'geo:breaker:' . $this->provider->name() . ':failures';
+        return 'geo:breaker:'.$this->provider->name().':failures';
     }
 
     private function failureCount(): int

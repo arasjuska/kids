@@ -2,11 +2,11 @@
 
 namespace App\Models;
 
-use App\Enums\AddressTypeEnum;
 use App\Enums\AccuracyLevelEnum;
+use App\Enums\AddressTypeEnum;
+use App\Models\Concerns\GeoScopes;
 use App\Observers\AddressObserver;
 use Illuminate\Database\Eloquent\Model;
-use App\Models\Concerns\GeoScopes;
 
 class Address extends Model
 {
@@ -36,12 +36,13 @@ class Address extends Model
         'fields_refreshed_at',
         'manually_overridden',
         'source_locked',
+        'requires_verification',
+        'override_reason',
         'provider',
         'provider_place_id',
         'osm_type',
         'osm_id',
         'address_signature',
-        'requires_verification',
     ];
 
     protected $casts = [
@@ -59,6 +60,7 @@ class Address extends Model
         'manually_overridden' => 'boolean',
         'source_locked' => 'boolean',
         'requires_verification' => 'boolean',
+        'override_reason' => 'string',
     ];
 
     protected static function booted(): void
@@ -69,5 +71,10 @@ class Address extends Model
     public function places()
     {
         return $this->hasMany(Place::class);
+    }
+
+    public function audits()
+    {
+        return $this->hasMany(AddressAudit::class);
     }
 }

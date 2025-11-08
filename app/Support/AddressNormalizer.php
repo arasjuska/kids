@@ -24,7 +24,7 @@ final class AddressNormalizer
         $street = mb_strtolower($street);
 
         foreach ($this->abbr as $from => $to) {
-            $pattern = '/(?<=^|\s)' . preg_quote($from, '/') . '(?=\s|$)/u';
+            $pattern = '/(?<=^|\s)'.preg_quote($from, '/').'(?=\s|$)/u';
             $street = preg_replace($pattern, $to, $street);
         }
 
@@ -50,7 +50,7 @@ final class AddressNormalizer
     }
 
     /**
-     * @param array{street_name:?string,street_number:?string,city:?string,country_code:?string,postal_code?:?string} $parts
+     * @param  array{street_name:?string,street_number:?string,city:?string,country_code:?string,postal_code?:?string}  $parts
      */
     public function canonical(array $parts): string
     {
@@ -78,7 +78,7 @@ final class AddressNormalizer
     }
 
     /**
-     * @param array{street_name:?string,street_number:?string,city:?string,country_code:?string,postal_code?:?string} $parts
+     * @param  array{street_name:?string,street_number:?string,city:?string,country_code:?string,postal_code?:?string}  $parts
      */
     public function signature(array $parts): ?string
     {

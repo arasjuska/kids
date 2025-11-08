@@ -17,6 +17,7 @@ class AddressSearchField extends Component
 {
     /**
      * The entire Filament field state is bound here via LivewireField (wire:model="model").
+     *
      * @var array<string, mixed>
      */
     public array $model = [];
@@ -34,6 +35,7 @@ class AddressSearchField extends Component
     /**
      * Local suggestions used only for rendering the dropdown.
      * Parent model is updated only on selection to avoid input re-renders.
+     *
      * @var array<int, array<string, mixed>>
      */
     public array $suggestions = [];
@@ -62,6 +64,7 @@ class AddressSearchField extends Component
         if (mb_strlen($trimmed) < $this->minSearchLength) {
             $this->suggestions = [];
             $this->lastExecutedQuery = '';
+
             return;
         }
 
@@ -87,6 +90,7 @@ class AddressSearchField extends Component
                 $this->model['suggestions'] = [];
             }
             $this->lastExecutedQuery = '';
+
             return;
         }
 
@@ -138,7 +142,7 @@ class AddressSearchField extends Component
         // Find full suggestion payload and pass it to parent model for reliability
         $chosen = null;
         foreach (($this->suggestions ?? []) as $s) {
-            if ((string)($s['place_id'] ?? '') === (string) $placeId) {
+            if ((string) ($s['place_id'] ?? '') === (string) $placeId) {
                 $chosen = $s;
                 break;
             }

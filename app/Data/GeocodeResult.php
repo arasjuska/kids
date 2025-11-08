@@ -15,8 +15,7 @@ final class GeocodeResult
         public readonly string $accuracyLevel,
         public readonly float $providerConfidence,
         public readonly array $meta = [],
-    ) {
-    }
+    ) {}
 
     public function toArray(): array
     {

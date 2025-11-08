@@ -5,15 +5,13 @@ declare(strict_types=1);
 namespace App\Filament\Resources\Places\Pages;
 
 use App\Filament\Resources\Places\PlaceResource;
-use App\Services\AddressFormStateManager; // Importuojame AddressFormStateManager
-use App\Models\Address;
+use App\Models\Address; // Importuojame AddressFormStateManager
+use App\Services\AddressFormStateManager;
+use Filament\Notifications\Notification;
 use Filament\Resources\Pages\CreateRecord;
-use Illuminate\Support\Arr;
+use Illuminate\Http\Exceptions\HttpResponseException;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Validation\ValidationException;
-use Filament\Notifications\Notification;
-use Illuminate\Http\Exceptions\HttpResponseException;
-use Throwable;
 
 class CreatePlace extends CreateRecord
 {
@@ -22,7 +20,6 @@ class CreatePlace extends CreateRecord
     // Kadangi dabar naudojame AddressFormStateManager, šis kintamasis nebereikalingas
     // (bet palieku jį užkomentuotą, jei būtų kitų formos laukų, kurie jį naudoja).
     // public ?string $selected_address_data = null;
-
 
     /**
      * Nustato pradinius formos duomenis (kai puslapis užkraunamas).
@@ -45,7 +42,6 @@ class CreatePlace extends CreateRecord
             ],
         ];
     }
-
 
     /**
      * Mutuoja duomenis prieš įrašymą.
@@ -110,13 +106,17 @@ class CreatePlace extends CreateRecord
         $finalLat = null;
         $finalLng = null;
         if (is_numeric($lsLat) && is_numeric($lsLng)) {
-            $finalLat = (float) $lsLat; $finalLng = (float) $lsLng;
+            $finalLat = (float) $lsLat;
+            $finalLng = (float) $lsLng;
         } elseif (is_numeric($sLat) && is_numeric($sLng)) {
-            $finalLat = (float) $sLat; $finalLng = (float) $sLng;
+            $finalLat = (float) $sLat;
+            $finalLng = (float) $sLng;
         } elseif (is_numeric($rLat) && is_numeric($rLng)) {
-            $finalLat = (float) $rLat; $finalLng = (float) $rLng;
+            $finalLat = (float) $rLat;
+            $finalLng = (float) $rLng;
         } elseif (is_numeric($drLat) && is_numeric($drLng)) {
-            $finalLat = (float) $drLat; $finalLng = (float) $drLng;
+            $finalLat = (float) $drLat;
+            $finalLng = (float) $drLng;
         }
 
         // If nothing else provided, try to resolve coordinates from live.suggestions by selected_place_id

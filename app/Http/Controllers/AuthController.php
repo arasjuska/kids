@@ -29,34 +29,37 @@ class AuthController extends Controller
 
         $validated = $validator->validated();
 
-        if (\Auth::attempt(array('email' => $validated['email'], 'password' => $validated['password']))) {
+        if (\Auth::attempt(['email' => $validated['email'], 'password' => $validated['password']])) {
             return redirect()->route('index');
         } else {
             $validator->errors()->add(
                 'password', 'The password does not match with username'
             );
+
             return redirect()->back()->withErrors($validator)->withInput();
         }
     }
 
-    public function registerView(){
+    public function registerView()
+    {
         return view('register');
     }
 
-    public function register(Request $request){
-        
+    public function register(Request $request)
+    {
+
         $validator = Validator::make($request->all(), [
             'name' => ['required', 'string'],
-            'email' => ['required', 'email','unique:users'],
-            'password' => ['required',"confirmed", Password::min(7)],
+            'email' => ['required', 'email', 'unique:users'],
+            'password' => ['required', 'confirmed', Password::min(7)],
         ]);
 
         $validated = $validator->validated();
 
         $user = User::create([
-            'name' => $validated["name"],
-            "email" => $validated["email"],
-            "password" => Hash::make($validated["password"])
+            'name' => $validated['name'],
+            'email' => $validated['email'],
+            'password' => Hash::make($validated['password']),
         ]);
 
         auth()->login($user);
@@ -67,6 +70,7 @@ class AuthController extends Controller
     public function logout()
     {
         auth()->logout();
+
         return redirect()->route('login');
     }
 }

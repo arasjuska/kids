@@ -23,13 +23,19 @@ use Throwable;
 class AddressFormStateManager
 {
     private const AUTO_SELECT_CONFIDENCE = 0.9;
+
     private const VERIFIED_CONFIDENCE = 0.95;
+
     private const LOW_CONFIDENCE_THRESHOLD = 0.6;
+
     private const DEFAULT_LATITUDE = 54.8985;   // Kaunas
+
     private const DEFAULT_LONGITUDE = 23.9036;  // Kaunas
 
     private AddressStateEnum $currentState = AddressStateEnum::IDLE;
+
     private InputModeEnum $inputMode = InputModeEnum::SEARCH;
+
     private AddressTypeEnum $addressType = AddressTypeEnum::UNVERIFIED;
 
     /**
@@ -59,12 +65,19 @@ class AddressFormStateManager
     private array $lockedFields = [];
 
     private Collection $suggestions;
+
     private string $searchQuery = '';
+
     private ?array $selectedSuggestion = null;
+
     private ?array $autoSelectSnapshot = null;
+
     private bool $autoSelectAlert = false;
+
     private ?float $confidenceScore = null;
+
     private int $searchToken = 0;
+
     private string $lastExecutedQuery = '';
 
     /**
@@ -96,24 +109,25 @@ class AddressFormStateManager
             return false;
         }
         $e = 1e-6;
+
         return (abs(((float) $lat) - self::DEFAULT_LATITUDE) < $e)
             && (abs(((float) $lng) - self::DEFAULT_LONGITUDE) < $e);
     }
 
     private function hasMeaningfulInput(): bool
     {
-        if (!empty($this->selectedSuggestion)) {
+        if (! empty($this->selectedSuggestion)) {
             return true;
         }
 
         $manual = collect($this->manualFields)
             ->except(['country_code'])
-            ->filter(fn ($v) => !empty($v));
+            ->filter(fn ($v) => ! empty($v));
         if ($manual->isNotEmpty()) {
             return true;
         }
 
-        if (!$this->isDefaultCoordinates($this->coordinates['latitude'] ?? null, $this->coordinates['longitude'] ?? null)) {
+        if (! $this->isDefaultCoordinates($this->coordinates['latitude'] ?? null, $this->coordinates['longitude'] ?? null)) {
             return true;
         }
 
@@ -172,7 +186,7 @@ class AddressFormStateManager
             return null;
         }
 
-        return trim($street . ' ' . $number);
+        return trim($street.' '.$number);
     }
 
     private function buildDisplayAddress(): ?string
@@ -244,7 +258,7 @@ class AddressFormStateManager
      */
     public function setCountryCode(?string $countryCode): void
     {
-        if (!empty($countryCode)) {
+        if (! empty($countryCode)) {
             $this->countryCode = strtolower($countryCode);
         }
     }
@@ -343,7 +357,7 @@ class AddressFormStateManager
             $best = $this->suggestions->first();
             $confidence = (float) ($best['confidence'] ?? 0.0);
 
-            if ($confidence >= self::AUTO_SELECT_CONFIDENCE && !empty($best['place_id'])) {
+            if ($confidence >= self::AUTO_SELECT_CONFIDENCE && ! empty($best['place_id'])) {
                 $this->autoSelectSnapshot = [
                     'state' => [
                         'manual_fields' => $this->manualFields,
@@ -371,22 +385,23 @@ class AddressFormStateManager
     {
         $pid = (string) $placeId;
         $suggestion = $this->suggestions->first(function ($item) use ($pid) {
-            return (string)($item['place_id'] ?? '') === $pid;
+            return (string) ($item['place_id'] ?? '') === $pid;
         });
 
-        if (! $suggestion && is_array($this->selectedSuggestion) && (string)($this->selectedSuggestion['place_id'] ?? '') === $pid) {
+        if (! $suggestion && is_array($this->selectedSuggestion) && (string) ($this->selectedSuggestion['place_id'] ?? '') === $pid) {
             $suggestion = $this->selectedSuggestion;
         }
 
-        if (!$suggestion && $autoSelected && $this->autoSelectSnapshot) {
+        if (! $suggestion && $autoSelected && $this->autoSelectSnapshot) {
             $snapshotSuggestions = collect($this->autoSelectSnapshot['suggestions'] ?? []);
             $suggestion = $snapshotSuggestions->first(function ($item) use ($pid) {
-                return (string)($item['place_id'] ?? '') === $pid;
+                return (string) ($item['place_id'] ?? '') === $pid;
             });
         }
 
-        if (!$suggestion) {
+        if (! $suggestion) {
             \Log::debug('AddressManager: selectSuggestion skipped (not found)', ['place_id' => $pid, 'suggestion_count' => $this->suggestions->count()]);
+
             return;
         }
 
@@ -427,7 +442,7 @@ class AddressFormStateManager
         $this->currentState = AddressStateEnum::CONFIRMED;
         $this->inputMode = InputModeEnum::MIXED;
 
-        if (!$autoSelected) {
+        if (! $autoSelected) {
             $this->autoSelectSnapshot = null;
             $this->autoSelectAlert = false;
         }
@@ -438,7 +453,7 @@ class AddressFormStateManager
      */
     public function undoAutoSelect(): void
     {
-        if (!$this->autoSelectAlert || !$this->autoSelectSnapshot) {
+        if (! $this->autoSelectAlert || ! $this->autoSelectSnapshot) {
             return;
         }
 
@@ -477,7 +492,7 @@ class AddressFormStateManager
      */
     public function updateManualField(string $key, mixed $value): void
     {
-        if (!array_key_exists($key, $this->manualFields)) {
+        if (! array_key_exists($key, $this->manualFields)) {
             return;
         }
 
@@ -520,7 +535,7 @@ class AddressFormStateManager
                 $this->coordinates['longitude']
             );
 
-            if (!$resultObject) {
+            if (! $resultObject) {
                 $this->messages['warnings'][] = 'Nepavyko rasti adreso pagal šias koordinates.';
                 $this->addressType = AddressTypeEnum::VIRTUAL;
                 $this->currentState = AddressStateEnum::MANUAL;
@@ -614,15 +629,15 @@ class AddressFormStateManager
         // Bridge nested `live` state written by embedded search component, if present
         $live = $state['live'] ?? null;
         if (is_array($live)) {
-            if (!empty($live['suggestions']) && is_array($live['suggestions'])) {
+            if (! empty($live['suggestions']) && is_array($live['suggestions'])) {
                 $this->suggestions = collect($live['suggestions']);
             }
 
-            if (!empty($live['selected_suggestion']) && is_array($live['selected_suggestion'])) {
+            if (! empty($live['selected_suggestion']) && is_array($live['selected_suggestion'])) {
                 $this->selectedSuggestion = $live['selected_suggestion'];
             }
 
-            if (!empty($live['selected_place_id']) && is_string($live['selected_place_id'])) {
+            if (! empty($live['selected_place_id']) && is_string($live['selected_place_id'])) {
                 if (is_array($this->selectedSuggestion)) {
                     $this->selectedSuggestion['place_id'] = (string) $live['selected_place_id'];
                 }
@@ -697,16 +712,16 @@ class AddressFormStateManager
         }
 
         if ($normalised) {
-            foreach (['formatted_address','street_name','street_number','city','postal_code','country','country_code'] as $field) {
+            foreach (['formatted_address', 'street_name', 'street_number', 'city', 'postal_code', 'country', 'country_code'] as $field) {
                 if (empty($this->manualFields[$field]) && isset($normalised[$field])) {
                     $this->manualFields[$field] = $normalised[$field];
                 }
             }
 
-            if (empty($this->lockedFields['street_name'] ?? false) && !empty($normalised['street_name'] ?? null)) {
+            if (empty($this->lockedFields['street_name'] ?? false) && ! empty($normalised['street_name'] ?? null)) {
                 $this->manualFields['street_name'] = $normalised['street_name'];
             }
-            if (empty($this->lockedFields['city'] ?? false) && !empty($normalised['city'] ?? null)) {
+            if (empty($this->lockedFields['city'] ?? false) && ! empty($normalised['city'] ?? null)) {
                 $this->manualFields['city'] = $normalised['city'];
             }
 
@@ -724,7 +739,7 @@ class AddressFormStateManager
 
         $this->normalizeManualFields();
 
-        if (!is_numeric($this->coordinates['latitude']) || !is_numeric($this->coordinates['longitude'])) {
+        if (! is_numeric($this->coordinates['latitude']) || ! is_numeric($this->coordinates['longitude'])) {
             $errors[] = 'Nenurodytos koordinatės.';
         }
 
@@ -749,7 +764,7 @@ class AddressFormStateManager
             $warnings[] = 'Adresas nėra pilnai patvirtintas geokodavimo tarnybos.';
         }
 
-        if (!empty($this->lockedFields)) {
+        if (! empty($this->lockedFields)) {
             $warnings[] = 'Kai kurie laukų duomenys buvo užrakinti rankiniu būdu ir gali neatitikti geokodavimo rezultatų.';
         }
 
@@ -797,8 +812,8 @@ class AddressFormStateManager
     {
         $result = $this->validateAndPrepareForSubmission();
 
-        if (!empty($result['errors'])) {
-            throw new RuntimeException('Adreso duomenys negali būti išsaugoti: ' . implode(' ', $result['errors']));
+        if (! empty($result['errors'])) {
+            throw new RuntimeException('Adreso duomenys negali būti išsaugoti: '.implode(' ', $result['errors']));
         }
 
         return $result['data'];
@@ -884,7 +899,7 @@ class AddressFormStateManager
     {
         return collect($this->manualFields)
             ->except(['country_code'])
-            ->filter(fn ($value) => !empty($value))
+            ->filter(fn ($value) => ! empty($value))
             ->isNotEmpty();
     }
 

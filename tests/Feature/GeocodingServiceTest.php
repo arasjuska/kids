@@ -88,7 +88,7 @@ it('opens breaker after repeated failures', function () {
     $service = app(GeocodingServiceInterface::class);
 
     for ($i = 0; $i < config('geocoding.breaker.failure_threshold'); $i++) {
-        $service->forward('fail-' . $i);
+        $service->forward('fail-'.$i);
     }
 
     Http::fake([
@@ -113,7 +113,7 @@ it('respects throttle limit', function () {
     $limit = config('geocoding.throttle.rps');
 
     for ($i = 0; $i < $limit; $i++) {
-        $service->forward('throttle-' . $i);
+        $service->forward('throttle-'.$i);
     }
 
     $blocked = $service->forward('throttle-block');

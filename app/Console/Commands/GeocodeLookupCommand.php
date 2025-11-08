@@ -17,6 +17,7 @@ class GeocodeLookupCommand extends Command
 
         if (! $result) {
             $this->warn('No result');
+
             return self::FAILURE;
         }
 

@@ -7,9 +7,7 @@ use Illuminate\Http\Client\PendingRequest;
 
 final class NominatimClient
 {
-    public function __construct(private readonly HttpFactory $http)
-    {
-    }
+    public function __construct(private readonly HttpFactory $http) {}
 
     public function name(): string
     {

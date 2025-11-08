@@ -13,7 +13,6 @@ use Filament\Forms\Components\LivewireField;
 use Filament\Forms\Components\Select;
 use Filament\Forms\Components\TextInput;
 use Filament\Forms\Components\ViewField;
-use Filament\Schemas\Components\Grid;
 use Filament\Schemas\Components\Section;
 use Filament\Schemas\Components\Utilities\Get;
 use Illuminate\Support\Arr;
@@ -134,7 +133,6 @@ class AddressField extends Field
                     $this->handleSuggestionSelection((string) $state);
                 }),
 
-
             Hidden::make('live.suggestions')
                 ->dehydrated(false)
                 ->reactive()
@@ -203,8 +201,6 @@ class AddressField extends Field
 
                     $this->handleUndoAutoSelect();
                 }),
-
-
 
             Section::make()
                 ->schema([
@@ -440,7 +436,11 @@ class AddressField extends Field
 
     protected function handleManualFieldUpdate(string $field, mixed $value): void
     {
-        $this->resolveManager()->updateManualField($field, $value);
+        $manager = $this->resolveManager();
+
+        $manager->updateManualField($field, $value);
+        $manager->validateAndPrepareForSubmission();
+
         $this->applySnapshotFromManager();
     }
 

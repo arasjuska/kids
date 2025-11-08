@@ -1,11 +1,11 @@
 <?php
 
-use App\Enums\AddressTypeEnum;
 use App\Enums\AccuracyLevelEnum;
+use App\Enums\AddressTypeEnum;
 use App\Models\Address;
 use App\Support\AddressNormalizer;
-use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Database\QueryException;
+use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\TestCase;
 
 uses(TestCase::class, RefreshDatabase::class);

@@ -1,7 +1,7 @@
 <?php
 
-use App\Enums\AddressTypeEnum;
 use App\Enums\AccuracyLevelEnum;
+use App\Enums\AddressTypeEnum;
 use Illuminate\Database\Migrations\Migration;
 use Illuminate\Database\Schema\Blueprint;
 use Illuminate\Support\Facades\DB;

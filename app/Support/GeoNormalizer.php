@@ -35,7 +35,7 @@ final class GeoNormalizer
 
     public function roundForReverse(float $lat, float $lon, string $accuracy): array
     {
-        $precision = config('geocoding.rounding.reverse.' . Str::upper($accuracy), config('geocoding.rounding.reverse.default'));
+        $precision = config('geocoding.rounding.reverse.'.Str::upper($accuracy), config('geocoding.rounding.reverse.default'));
 
         return [
             'lat' => round($lat, $precision),

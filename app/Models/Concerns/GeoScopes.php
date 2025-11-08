@@ -9,10 +9,7 @@ trait GeoScopes
     /**
      * scopeNearby: bbox (MBR) → exact great-circle distance filter → order by distance ASC.
      *
-     * @param  Builder        $query
-     * @param  float          $lat
-     * @param  float          $lon
-     * @param  float|int      $meters
+     * @param  float|int  $meters
      * @param  array<string>  $columns
      */
     public function scopeNearby(
@@ -68,11 +65,6 @@ trait GeoScopes
     /**
      * scopeWithinBounds: fast MBR polygon containment only.
      *
-     * @param  Builder        $query
-     * @param  float          $minLat
-     * @param  float          $minLon
-     * @param  float          $maxLat
-     * @param  float          $maxLon
      * @param  array<string>  $columns
      */
     public function scopeWithinBounds(

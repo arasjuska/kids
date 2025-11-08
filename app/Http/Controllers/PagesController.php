@@ -538,6 +538,7 @@ class PagesController extends Controller
     {
         return view('pages/apps-nft-1');
     }
+
     public function appsNft2()
     {
         return view('pages/apps-nft-2');
@@ -627,6 +628,7 @@ class PagesController extends Controller
     {
         return view('pages/dashboards-education');
     }
+
     public function dashboardsDoctor()
     {
         return view('pages/dashboards-doctor');
