@@ -2,8 +2,8 @@
 
 namespace App\Providers;
 
-use Illuminate\Support\ServiceProvider;
 use Illuminate\Support\Facades\View;
+use Illuminate\Support\ServiceProvider;
 
 class ViewServiceProvider extends ServiceProvider
 {
@@ -25,5 +25,8 @@ class ViewServiceProvider extends ServiceProvider
     public function boot()
     {
         View::composer('*', 'App\Http\View\Composers\SidebarComposer');
+        View::composer('pages::*', function ($view) {
+            $view->with('load_demo_vendors', true);
+        });
     }
 }

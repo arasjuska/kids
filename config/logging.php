@@ -118,6 +118,12 @@ return [
             'replace_placeholders' => true,
         ],
 
+        'performance' => [
+            'driver' => 'single',
+            'path' => storage_path('logs/perf.log'),
+            'level' => 'debug',
+        ],
+
         'null' => [
             'driver' => 'monolog',
             'handler' => NullHandler::class,

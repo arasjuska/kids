@@ -6,6 +6,7 @@ namespace App\Filament\Forms\Components;
 
 use App\Enums\AddressStateEnum;
 use App\Enums\InputModeEnum;
+use App\Rules\Utf8String;
 use App\Services\AddressFormStateManager;
 use Filament\Forms\Components\Field;
 use Filament\Forms\Components\Hidden;
@@ -13,10 +14,11 @@ use Filament\Forms\Components\LivewireField;
 use Filament\Forms\Components\Select;
 use Filament\Forms\Components\TextInput;
 use Filament\Forms\Components\ViewField;
-use Filament\Schemas\Components\Grid;
 use Filament\Schemas\Components\Section;
 use Filament\Schemas\Components\Utilities\Get;
 use Illuminate\Support\Arr;
+use Illuminate\Support\Facades\Log;
+use InvalidArgumentException;
 
 /**
  * Kompozitinis Filament formos laukas, valdantis adreso paiešką, pasiūlymus,
@@ -61,10 +63,28 @@ class AddressField extends Field
                 $manager->restoreState($state);
             }
 
+            if (app()->environment(['local', 'testing'])) {
+                Log::info('addr:field:dehydrate:before', [
+                    'statePath' => $component->getStatePath(),
+                    'input_mode' => data_get($state, 'input_mode'),
+                    'current_state' => data_get($state, 'current_state'),
+                ]);
+            }
+
             $manager->validateAndPrepareForSubmission();
             $component->applySnapshotFromManager();
 
-            return $manager->getStateSnapshot();
+            $snapshot = $manager->getStateSnapshot();
+
+            if (app()->environment(['local', 'testing'])) {
+                Log::info('addr:field:dehydrate:after', [
+                    'statePath' => $component->getStatePath(),
+                    'input_mode' => data_get($snapshot, 'input_mode'),
+                    'current_state' => data_get($snapshot, 'current_state'),
+                ]);
+            }
+
+            return $snapshot;
         });
 
     }
@@ -134,7 +154,6 @@ class AddressField extends Field
                     $this->handleSuggestionSelection((string) $state);
                 }),
 
-
             Hidden::make('live.suggestions')
                 ->dehydrated(false)
                 ->reactive()
@@ -203,8 +222,6 @@ class AddressField extends Field
 
                     $this->handleUndoAutoSelect();
                 }),
-
-
 
             Section::make()
                 ->schema([
@@ -305,27 +322,43 @@ class AddressField extends Field
                     TextInput::make('manual_fields.formatted_address')
                         ->label('Pilnas adresas')
                         ->columnSpanFull()
+                        ->rule(new Utf8String())
                         ->afterStateUpdated(fn ($component, ?string $state) => $this->handleManualFieldUpdate('formatted_address', $state))
                         ->live(onBlur: true),
                     TextInput::make('manual_fields.street_name')
                         ->label('Gatvė')
+                        ->disabled(fn (Get $get): bool => $this->isSourceFieldLocked($get, 'street_name'))
+                        ->hint(fn (Get $get): ?string => $this->getSourceLockHint($get, 'street_name'))
+                        ->rule(new Utf8String())
                         ->afterStateUpdated(fn ($component, ?string $state) => $this->handleManualFieldUpdate('street_name', $state))
                         ->live(onBlur: true),
                     TextInput::make('manual_fields.street_number')
                         ->label('Namo Nr.')
+                        ->disabled(fn (Get $get): bool => $this->isSourceFieldLocked($get, 'street_number'))
+                        ->hint(fn (Get $get): ?string => $this->getSourceLockHint($get, 'street_number'))
+                        ->rule(new Utf8String())
                         ->afterStateUpdated(fn ($component, ?string $state) => $this->handleManualFieldUpdate('street_number', $state))
                         ->live(onBlur: true),
                     TextInput::make('manual_fields.postal_code')
                         ->label('Pašto kodas')
+                        ->disabled(fn (Get $get): bool => $this->isSourceFieldLocked($get, 'postal_code'))
+                        ->hint(fn (Get $get): ?string => $this->getSourceLockHint($get, 'postal_code'))
+                        ->rule(new Utf8String())
                         ->afterStateUpdated(fn ($component, ?string $state) => $this->handleManualFieldUpdate('postal_code', $state))
                         ->live(onBlur: true),
                     TextInput::make('manual_fields.city')
                         ->label('Miestas')
+                        ->disabled(fn (Get $get): bool => $this->isSourceFieldLocked($get, 'city'))
+                        ->hint(fn (Get $get): ?string => $this->getSourceLockHint($get, 'city'))
+                        ->rule(new Utf8String())
                         ->afterStateUpdated(fn ($component, ?string $state) => $this->handleManualFieldUpdate('city', $state))
                         ->live(onBlur: true),
                     TextInput::make('manual_fields.country_code')
                         ->label('Šalies kodas')
                         ->maxLength(2)
+                        ->disabled(fn (Get $get): bool => $this->isSourceFieldLocked($get, 'country_code'))
+                        ->hint(fn (Get $get): ?string => $this->getSourceLockHint($get, 'country_code'))
+                        ->rule(new Utf8String())
                         ->afterStateUpdated(fn ($component, ?string $state) => $this->handleManualFieldUpdate('country_code', $state))
                         ->live(onBlur: true),
                 ])
@@ -368,9 +401,10 @@ class AddressField extends Field
             'address_type' => $snapshot['address_type'] ?? null,
             'suggestions' => $snapshot['suggestions'] ?? [],
             'selected_suggestion' => $snapshot['selected_suggestion'] ?? null,
-            'manual_fields' => $snapshot['manual_fields'] ?? [],
-            'coordinates' => $snapshot['coordinates'] ?? [],
+            'manual_fields' => array_replace($current['manual_fields'] ?? [], $snapshot['manual_fields'] ?? []),
+            'coordinates' => array_replace($current['coordinates'] ?? [], $snapshot['coordinates'] ?? []),
             'locked_fields' => $snapshot['locked_fields'] ?? [],
+             'source_field_locks' => $snapshot['source_field_locks'] ?? [],
             'auto_select_alert' => $snapshot['auto_select_alert'] ?? false,
             'messages' => $snapshot['messages'] ?? ['errors' => [], 'warnings' => []],
             'confidence_score' => $snapshot['confidence_score'] ?? null,
@@ -440,7 +474,23 @@ class AddressField extends Field
 
     protected function handleManualFieldUpdate(string $field, mixed $value): void
     {
-        $this->resolveManager()->updateManualField($field, $value);
+        $manager = $this->resolveManager();
+
+        try {
+            $manager->updateManualField($field, $value);
+            $manager->validateAndPrepareForSubmission();
+        } catch (InvalidArgumentException $exception) {
+            $manager->pushMessage('errors', $exception->getMessage());
+
+            if (app()->environment(['local', 'testing'])) {
+                Log::warning('AddressField: locked field update blocked', [
+                    'field' => $field,
+                    'statePath' => $this->getStatePath(),
+                    'message' => $exception->getMessage(),
+                ]);
+            }
+        }
+
         $this->applySnapshotFromManager();
     }
 
@@ -474,4 +524,22 @@ class AddressField extends Field
     }
 
     // Search is handled by embedded Livewire field for UX stability.
+
+    protected function isSourceFieldLocked(Get $get, string $field): bool
+    {
+        $locks = $get('source_field_locks');
+
+        if (! is_array($locks)) {
+            return false;
+        }
+
+        return in_array($field, $locks, true);
+    }
+
+    protected function getSourceLockHint(Get $get, string $field): ?string
+    {
+        return $this->isSourceFieldLocked($get, $field)
+            ? '🔒 Locked by Source'
+            : null;
+    }
 }

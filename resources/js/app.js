@@ -13,11 +13,6 @@ import intersect from "@alpinejs/intersect"; // @see https://alpinejs.dev/plugin
 */
 import SimpleBar from "simplebar";
 
-import L from "leaflet";
-import "leaflet/dist/leaflet.css";
-import markerIcon2x from "leaflet/dist/images/marker-icon-2x.png";
-import markerIcon from "leaflet/dist/images/marker-icon.png";
-import markerShadow from "leaflet/dist/images/marker-shadow.png";
 
 /*
     Code highlighting library
@@ -37,31 +32,14 @@ import dayjs from "dayjs";
     Carousel Library
     @see https://swiperjs.com/
 */
-import Swiper from "swiper/bundle";
-
 /*
     Drag & Drop Library
     @see https://github.com/SortableJS/Sortable
 */
 import Sortable from "sortablejs";
 
-/*
-    Charts Libraries
-    @see https://apexcharts.com/
-*/
-import ApexCharts from "apexcharts";
-
-/*
-    Tables Libraries
-    @see https://gridjs.io/
-*/
-import * as Gridjs from "gridjs";
-
 //  Forms Libraries
 import "@caneara/iodine"; // @see https://github.com/caneara/iodine
-import * as FilePond from "filepond"; // @see https://pqina.nl/filepond/
-import FilePondPluginImagePreview from "filepond-plugin-image-preview"; // @see https://pqina.nl/filepond/docs/api/plugins/image-preview/
-import Quill from "quill"; // @see https://quilljs.com/
 import flatpickr from "flatpickr"; // @see https://flatpickr.js.org/
 import Tom from "tom-select/dist/js/tom-select.complete.min"; // @see https://tom-select.js.org/
 
@@ -97,39 +75,37 @@ import clipboard from "./magics/clipboard";
 hljs.registerLanguage("xml", xml);
 hljs.configure({ ignoreUnescapedHTML: true });
 
-// Register plugin image preview for filepond
-FilePond.registerPlugin(FilePondPluginImagePreview);
-
-try {
-    // eslint-disable-next-line no-underscore-dangle
-    delete L.Icon.Default.prototype._getIconUrl;
-    L.Icon.Default.mergeOptions({
-        iconRetinaUrl: markerIcon2x,
-        iconUrl: markerIcon,
-        shadowUrl: markerShadow,
-    });
-} catch (error) {
-    console.warn('[Leaflet] Failed to configure default marker icons.', error);
-}
-
-window.L = L;
-
 window.hljs = hljs;
 window.dayjs = dayjs;
 window.SimpleBar = SimpleBar;
-window.Swiper = Swiper;
 window.Sortable = Sortable;
-window.ApexCharts = ApexCharts;
-window.Gridjs = Gridjs;
-window.FilePond = FilePond;
 window.flatpickr = flatpickr;
-window.Quill = Quill;
 window.Tom = Tom;
 
 
 window.Alpine = Alpine;
 window.helpers = helpers;
 window.pages = pages;
+
+const entryModules = import.meta.glob('./entries/*.js');
+const preloadedEntryModules = window.__preloadedEntryModules = window.__preloadedEntryModules ?? {};
+const entryCache = {};
+
+window.__loadEntryModule = async (name) => {
+    if (preloadedEntryModules[name]) {
+        return preloadedEntryModules[name];
+    }
+
+    const key = `./entries/${name}.js`;
+
+    if (! entryModules[key]) {
+        throw new Error(`Unknown UI entry module: ${name}`);
+    }
+
+    entryCache[name] = entryCache[name] ?? entryModules[key]();
+
+    return entryCache[name];
+};
 
 Alpine.plugin(persist);
 Alpine.plugin(collapse);

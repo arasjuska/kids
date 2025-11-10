@@ -88,7 +88,11 @@
                 </div>
 
                 <div class="col-span-12 mt-5 sm:col-span-6 sm:mt-0 lg:col-span-8">
-                    <div class="swiper px-5 sm:pl-0" x-init="$nextTick(() => new Swiper($el, { slidesPerView: 'auto', spaceBetween: 16 }))">
+                    <div class="swiper px-5 sm:pl-0" x-init="$nextTick(() => { (async () => {
+                        const { loadSwiper } = await window.__loadEntryModule('swiper.entry');
+                        const Swiper = await loadSwiper();
+                        new Swiper($el, { slidesPerView: 'auto', spaceBetween: 16 });
+                    })(); })">
                         <div class="swiper-wrapper">
                             <div
                                 class="swiper-slide relative h-40 w-64 shrink-0 rounded-lg bg-linear-to-br from-[#ffffff55] to-[#ffffff20]">

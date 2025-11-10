@@ -1,3 +1,5 @@
+@reference '../app.css';
+
 @import 'quill/dist/quill.snow.css';
 
 .ql-container.ql-snow,

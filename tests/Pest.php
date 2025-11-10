@@ -1,5 +1,10 @@
 <?php
 
+use Illuminate\Foundation\Testing\RefreshDatabase;
+use Tests\TestCase;
+
+require_once __DIR__.'/Feature/helpers.php';
+
 /*
 |--------------------------------------------------------------------------
 | Test Case
@@ -11,8 +16,8 @@
 |
 */
 
-pest()->extend(Tests\TestCase::class)
- // ->use(Illuminate\Foundation\Testing\RefreshDatabase::class)
+pest()->extend(TestCase::class)
+    ->use(RefreshDatabase::class)
     ->in('Feature');
 
 /*

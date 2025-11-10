@@ -26,8 +26,8 @@ class PlaceResource extends Resource
     /**
      * Taisymas: Grąžinama signatūra į Schema $schema, kad atitiktų tėvinės klasės signatūrą
      * ir išvengtume 'Filament\Forms\Form' nepasiekiamumo klaidos.
-     * @param Schema $schema (arba Form $form, bet dėl klaidos paliekame Schema)
-     * @return Schema
+     *
+     * @param  Schema  $schema  (arba Form $form, bet dėl klaidos paliekame Schema)
      */
     public static function form(Schema $schema): Schema
     {

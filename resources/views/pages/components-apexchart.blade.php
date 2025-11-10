@@ -60,7 +60,7 @@
                 <div class="mt-5">
                   <div>
                     <div
-                      x-init="$nextTick(() => { $el._x_chart = new ApexCharts($el,pages.charts.demoChart1); $el._x_chart.render() });"
+                      x-init="$nextTick(() => { (async () => { const { loadApex } = await window.__loadEntryModule(\'apexcharts.entry\'); const ApexCharts = await loadApex(); $el._x_chart = new ApexCharts($el,pages.charts.demoChart1); $el._x_chart.render(); })(); })"
                     ></div>
                   </div>
                 </div>
@@ -90,7 +90,7 @@
                 <div class="mt-5">
                   <div>
                     <div
-                      x-init="$nextTick(() => { $el._x_chart = new ApexCharts($el,pages.charts.demoChart3); $el._x_chart.render() });"
+                      x-init="$nextTick(() => { (async () => { const { loadApex } = await window.__loadEntryModule(\'apexcharts.entry\'); const ApexCharts = await loadApex(); $el._x_chart = new ApexCharts($el,pages.charts.demoChart3); $el._x_chart.render(); })(); })"
                     ></div>
                   </div>
                 </div>
@@ -120,7 +120,7 @@
                 <div class="mt-5">
                   <div>
                     <div
-                      x-init="$nextTick(() => { $el._x_chart = new ApexCharts($el,pages.charts.demoChart5); $el._x_chart.render() });"
+                      x-init="$nextTick(() => { (async () => { const { loadApex } = await window.__loadEntryModule(\'apexcharts.entry\'); const ApexCharts = await loadApex(); $el._x_chart = new ApexCharts($el,pages.charts.demoChart5); $el._x_chart.render(); })(); })"
                     ></div>
                   </div>
                 </div>
@@ -150,7 +150,7 @@
                 <div class="mt-5">
                   <div>
                     <div
-                      x-init="$nextTick(() => { $el._x_chart = new ApexCharts($el,pages.charts.demoChart7); $el._x_chart.render() });"
+                      x-init="$nextTick(() => { (async () => { const { loadApex } = await window.__loadEntryModule(\'apexcharts.entry\'); const ApexCharts = await loadApex(); $el._x_chart = new ApexCharts($el,pages.charts.demoChart7); $el._x_chart.render(); })(); })"
                     ></div>
                   </div>
                 </div>
@@ -180,7 +180,7 @@
                 <div class="mt-5">
                   <div>
                     <div
-                      x-init="$nextTick(() => { $el._x_chart = new ApexCharts($el,pages.charts.demoChart9); $el._x_chart.render() });"
+                      x-init="$nextTick(() => { (async () => { const { loadApex } = await window.__loadEntryModule(\'apexcharts.entry\'); const ApexCharts = await loadApex(); $el._x_chart = new ApexCharts($el,pages.charts.demoChart9); $el._x_chart.render(); })(); })"
                     ></div>
                   </div>
                 </div>
@@ -212,7 +212,7 @@
                 <div class="mt-5">
                   <div>
                     <div
-                      x-init="$nextTick(() => { $el._x_chart = new ApexCharts($el,pages.charts.demoChart2); $el._x_chart.render() });"
+                      x-init="$nextTick(() => { (async () => { const { loadApex } = await window.__loadEntryModule(\'apexcharts.entry\'); const ApexCharts = await loadApex(); $el._x_chart = new ApexCharts($el,pages.charts.demoChart2); $el._x_chart.render(); })(); })"
                     ></div>
                   </div>
                 </div>
@@ -242,7 +242,7 @@
                 <div class="mt-5">
                   <div>
                     <div
-                      x-init="$nextTick(() => { $el._x_chart = new ApexCharts($el,pages.charts.demoChart4); $el._x_chart.render() });"
+                      x-init="$nextTick(() => { (async () => { const { loadApex } = await window.__loadEntryModule(\'apexcharts.entry\'); const ApexCharts = await loadApex(); $el._x_chart = new ApexCharts($el,pages.charts.demoChart4); $el._x_chart.render(); })(); })"
                     ></div>
                   </div>
                 </div>
@@ -272,7 +272,7 @@
                 <div class="mt-5">
                   <div>
                     <div
-                      x-init="$nextTick(() => { $el._x_chart = new ApexCharts($el,pages.charts.demoChart6); $el._x_chart.render() });"
+                      x-init="$nextTick(() => { (async () => { const { loadApex } = await window.__loadEntryModule(\'apexcharts.entry\'); const ApexCharts = await loadApex(); $el._x_chart = new ApexCharts($el,pages.charts.demoChart6); $el._x_chart.render(); })(); })"
                     ></div>
                   </div>
                 </div>
@@ -302,7 +302,7 @@
                 <div class="mt-5">
                   <div>
                     <div
-                      x-init="$nextTick(() => { $el._x_chart = new ApexCharts($el,pages.charts.demoChart8); $el._x_chart.render() });"
+                      x-init="$nextTick(() => { (async () => { const { loadApex } = await window.__loadEntryModule(\'apexcharts.entry\'); const ApexCharts = await loadApex(); $el._x_chart = new ApexCharts($el,pages.charts.demoChart8); $el._x_chart.render(); })(); })"
                     ></div>
                   </div>
                 </div>
@@ -332,7 +332,7 @@
                 <div class="mt-5">
                   <div>
                     <div
-                      x-init="$nextTick(() => { $el._x_chart = new ApexCharts($el,pages.charts.demoChart10); $el._x_chart.render() });"
+                      x-init="$nextTick(() => { (async () => { const { loadApex } = await window.__loadEntryModule(\'apexcharts.entry\'); const ApexCharts = await loadApex(); $el._x_chart = new ApexCharts($el,pages.charts.demoChart10); $el._x_chart.render(); })(); })"
                     ></div>
                   </div>
                 </div>

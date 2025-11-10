@@ -10,12 +10,11 @@ class SidebarComposer
     /**
      * Bind data to the view.
      *
-     * @param View $view
      * @return void
      */
     public function compose(View $view)
     {
-        if (!is_null(request()->route())) {
+        if (! is_null(request()->route())) {
             $pageName = request()->route()->getName();
             $routePrefix = explode('/', $pageName)[0] ?? '';
 
@@ -41,7 +40,7 @@ class SidebarComposer
                 default:
                     $view->with('sidebarMenu', SidebarPanel::dashboards());
             }
-            
+
             $view->with('allSidebarItems', SidebarPanel::all());
             $view->with('pageName', $pageName);
             $view->with('routePrefix', $routePrefix);

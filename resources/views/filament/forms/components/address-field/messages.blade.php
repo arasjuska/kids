@@ -16,11 +16,14 @@
 
 @if ($warnings->isNotEmpty())
     <div class="rounded-lg border border-amber-200 bg-amber-50 p-3 text-sm text-amber-900 dark:border-amber-500/30 dark:bg-amber-950/40 dark:text-amber-200">
-        <p class="font-semibold mb-1">Įspėjimai:</p>
+        <p class="font-semibold mb-1">{{ __('address.warnings_title') }}</p>
         <ul class="list-disc ps-5 space-y-1">
             @foreach ($warnings as $message)
                 <li>{{ $message }}</li>
             @endforeach
         </ul>
+        <p class="mt-2 text-xs text-amber-800 dark:text-amber-200/80">
+            {{ __('address.manual_hint') }}
+        </p>
     </div>
 @endif

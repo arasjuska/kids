@@ -50,7 +50,11 @@
                                 </button>
                             </div>
                         </div>
-                        <div class="swiper px-4" x-init="$nextTick(() => $el._x_swiper = new Swiper($el, { slidesPerView: 'auto', spaceBetween: 10, slidesPerGroup: 3 }))">
+                        <div class="swiper px-4" x-init="$nextTick(() => { (async () => {
+                            const { loadSwiper } = await window.__loadEntryModule('swiper.entry');
+                            const Swiper = await loadSwiper();
+                            $el._x_swiper = new Swiper($el, { slidesPerView: 'auto', spaceBetween: 10, slidesPerGroup: 3 });
+                        })(); })">
                             <div class="swiper-wrapper mt-1">
                                 <div class="swiper-slide flex w-11 shrink-0 flex-col items-center justify-center">
                                     <div

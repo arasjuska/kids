@@ -1,3 +1,5 @@
+@reference '../app.css';
+
 .gridjs-table {
   @apply w-full text-left;
 }

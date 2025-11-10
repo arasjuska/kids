@@ -758,7 +758,11 @@
             <div>
                 <div x-show="activeTab === 'tab-recent'" x-transition:enter="transition-all duration-500 easy-in-out"
                     x-transition:enter-start="opacity-0 [transform:translate3d(1rem,0,0)]"
-                    x-transition:enter-end="opacity-100 [transform:translate3d(0,0,0)]" x-init="$nextTick(() => new Swiper($el, { slidesPerView: 'auto', spaceBetween: 20 }))"
+                    x-transition:enter-end="opacity-100 [transform:translate3d(0,0,0)]" x-init="$nextTick(() => { (async () => {
+                        const { loadSwiper } = await window.__loadEntryModule('swiper.entry');
+                        const Swiper = await loadSwiper();
+                        new Swiper($el, { slidesPerView: 'auto', spaceBetween: 20 });
+                    })(); })"
                     class="swiper px-[var(--margin-x)] pt-4 transition-all duration-[.25s]">
                     <div class="swiper-wrapper">
                         <div class="card swiper-slide w-56 shrink-0 p-3 pt-4">
@@ -916,7 +920,11 @@
                 </div>
                 <div x-show="activeTab === 'tab-pinned'" x-transition:enter="transition-all duration-500 easy-in-out"
                     x-transition:enter-start="opacity-0 [transform:translate3d(1rem,0,0)]"
-                    x-transition:enter-end="opacity-100 [transform:translate3d(0,0,0)]" x-init="$nextTick(() => new Swiper($el, { slidesPerView: 'auto', spaceBetween: 20 }))"
+                    x-transition:enter-end="opacity-100 [transform:translate3d(0,0,0)]" x-init="$nextTick(() => { (async () => {
+                        const { loadSwiper } = await window.__loadEntryModule('swiper.entry');
+                        const Swiper = await loadSwiper();
+                        new Swiper($el, { slidesPerView: 'auto', spaceBetween: 20 });
+                    })(); })"
                     class="swiper px-[var(--margin-x)] pt-4 transition-all duration-[.25s]">
                     <div class="swiper-wrapper">
                         <div class="card swiper-slide w-56 shrink-0 p-3 pt-4">

@@ -17,6 +17,7 @@ class AddressSearchField extends Component
 {
     /**
      * The entire Filament field state is bound here via LivewireField (wire:model="model").
+     *
      * @var array<string, mixed>
      */
     public array $model = [];
@@ -34,6 +35,7 @@ class AddressSearchField extends Component
     /**
      * Local suggestions used only for rendering the dropdown.
      * Parent model is updated only on selection to avoid input re-renders.
+     *
      * @var array<int, array<string, mixed>>
      */
     public array $suggestions = [];
@@ -59,9 +61,17 @@ class AddressSearchField extends Component
             $this->model['search_query'] = $trimmed;
         }
 
+        if (app()->environment(['local', 'testing'])) {
+            Log::info('addr:search:input', [
+                'query' => $trimmed,
+                'token' => $this->searchToken,
+            ]);
+        }
+
         if (mb_strlen($trimmed) < $this->minSearchLength) {
             $this->suggestions = [];
             $this->lastExecutedQuery = '';
+
             return;
         }
 
@@ -87,6 +97,7 @@ class AddressSearchField extends Component
                 $this->model['suggestions'] = [];
             }
             $this->lastExecutedQuery = '';
+
             return;
         }
 
@@ -95,6 +106,14 @@ class AddressSearchField extends Component
         }
 
         $token = ++$this->searchToken;
+
+        if (app()->environment(['local', 'testing'])) {
+            Log::info('addr:search:perform', [
+                'query' => $q,
+                'normalized' => $normalized,
+                'token' => $token,
+            ]);
+        }
 
         try {
             /** @var GeocodingServiceInterface $svc */
@@ -129,6 +148,13 @@ class AddressSearchField extends Component
 
     public function select(string $placeId): void
     {
+        if (app()->environment(['local', 'testing'])) {
+            Log::info('addr:search:select', [
+                'place_id' => $placeId,
+                'token' => $this->searchToken,
+            ]);
+        }
+
         $this->model['selected_place_id'] = (string) $placeId;
 
         if (is_array($this->model)) {
@@ -138,7 +164,7 @@ class AddressSearchField extends Component
         // Find full suggestion payload and pass it to parent model for reliability
         $chosen = null;
         foreach (($this->suggestions ?? []) as $s) {
-            if ((string)($s['place_id'] ?? '') === (string) $placeId) {
+            if ((string) ($s['place_id'] ?? '') === (string) $placeId) {
                 $chosen = $s;
                 break;
             }

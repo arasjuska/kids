@@ -16,7 +16,9 @@
     </title>
 
     <!-- CSS & JS Assets -->
-    @vite(['resources/css/app.css', 'resources/js/app.js'])
+    @if (!empty($shouldIncludeViteAssets))
+        @vite(['resources/css/app.css', 'resources/js/app.js'])
+    @endif
 
     <!-- Fonts -->
     <link rel="preconnect" href="https://fonts.googleapis.com" />
@@ -77,6 +79,16 @@
     <script>
         window.addEventListener("DOMContentLoaded", () => Alpine.start());
     </script>
+
+    @php
+        $shouldLoadDemoVendors = !app()->environment('testing')
+            && !empty($load_demo_vendors ?? null)
+            && file_exists(public_path('build/manifest.json'));
+    @endphp
+
+    @if ($shouldLoadDemoVendors)
+        @vite(['resources/js/entries/demo-vendors.entry.js'])
+    @endif
 
     @isset($script)
         {{ $script }}

@@ -6,7 +6,7 @@ enum AddressStateEnum: string
 {
     case IDLE = 'idle';              // laukiam įvedimo
     case SEARCHING = 'searching';    // vyksta paieška
-    case SUGGESTIONS = 'suggestions';// rodom pasiūlymus
+    case SUGGESTIONS = 'suggestions'; // rodom pasiūlymus
     case NO_RESULTS = 'no_results';  // paieška negrąžino rezultatų
     case MANUAL = 'manual';          // rankinis redagavimas
     case CONFIRMED = 'confirmed';    // pasirinktas galutinis adresas

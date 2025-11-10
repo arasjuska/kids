@@ -1,3 +1,5 @@
+@reference '../app.css';
+
 .apexcharts-text {
   @apply fill-current font-inter! text-slate-500 dark:text-navy-200;
 }

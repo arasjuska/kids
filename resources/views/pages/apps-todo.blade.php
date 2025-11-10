@@ -1084,21 +1084,25 @@
                     <div>
                         <span>Description</span>
                         <div class="mt-1.5 w-full">
-                            <div class="h-36" x-init="$el._x_quill = new Quill($el, {
-                                modules: {
-                                    toolbar: [
-                                        ['bold', 'italic', 'underline'],
-                                        [
-                                            { list: 'ordered' },
-                                            { list: 'bullet' },
-                                            { header: 1 },
-                                            { background: [] },
+                            <div class="h-36" x-init="(async () => {
+                                const { loadQuill } = await window.__loadEntryModule('quill.entry');
+                                const Quill = await loadQuill();
+                                $el._x_quill = new Quill($el, {
+                                    modules: {
+                                        toolbar: [
+                                            ['bold', 'italic', 'underline'],
+                                            [
+                                                { list: 'ordered' },
+                                                { list: 'bullet' },
+                                                { header: 1 },
+                                                { background: [] },
+                                            ],
                                         ],
-                                    ],
-                                },
-                                placeholder: 'Enter your content...',
-                                theme: 'snow',
-                            })">
+                                    },
+                                    placeholder: 'Enter your content...',
+                                    theme: 'snow',
+                                });
+                            })()">
                                 Lorem ipsum dolor sit amet, consectetur adipisicing elit.
                                 Corporis incidunt nostrum repellat.
                             </div>

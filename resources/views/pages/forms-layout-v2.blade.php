@@ -128,7 +128,11 @@
                         <div>
                             <span>Images</span>
                             <div class="filepond fp-bordered fp-grid mt-1.5 [--fp-grid:2]">
-                                <input type="file" x-init="$el._x_filepond = FilePond.create($el)" multiple />
+                                <input type="file" x-init="(async () => {
+                                    const { loadFilePond } = await window.__loadEntryModule('filepond.entry');
+                                    const FilePond = await loadFilePond();
+                                    $el._x_filepond = FilePond.create($el);
+                                })()" multiple />
                             </div>
                         </div>
                         <div class="flex justify-center space-x-2 pt-4">

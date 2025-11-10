@@ -119,14 +119,14 @@
                     </p>
                     <div class="mt-5">
                         <div class="filepond fp-bordered">
-                            <input type="file" x-init="$el._x_filepond = FilePond.create($el)" multiple />
+                            <input type="file" x-init="(async () => { const { loadFilePond } = await window.__loadEntryModule('filepond.entry'); const FilePond = await loadFilePond(); $el._x_filepond = FilePond.create($el); })()" multiple />
                         </div>
                     </div>
                 </div>
                 <div class="code-wrapper hidden pt-4">
                     <pre class="is-scrollbar-hidden max-h-96 overflow-auto rounded-lg" x-init="hljs.highlightElement($el)">
               <code class="language-html" x-ignore>
-&lt;div class=&quot;filepond fp-bordered&quot;&gt;&#13;&#10;    &lt;input type=&quot;file&quot;  x-init="$el._x_filepond = FilePond.create($el)" multiple /&gt;&#13;&#10;  &lt;/div&gt;&#13;&#10;</code>
+&lt;div class=&quot;filepond fp-bordered&quot;&gt;&#13;&#10;    &lt;input type=&quot;file&quot;  x-init="(async () => { const { loadFilePond } = await window.__loadEntryModule('filepond.entry'); const FilePond = await loadFilePond(); $el._x_filepond = FilePond.create($el); })()" multiple /&gt;&#13;&#10;  &lt;/div&gt;&#13;&#10;</code>
             </pre>
                 </div>
             </div>
@@ -155,14 +155,14 @@
                     </p>
                     <div class="mt-5">
                         <div class="filepond fp-bg-filled">
-                            <input type="file" x-init="$el._x_filepond = FilePond.create($el)" multiple />
+                            <input type="file" x-init="(async () => { const { loadFilePond } = await window.__loadEntryModule('filepond.entry'); const FilePond = await loadFilePond(); $el._x_filepond = FilePond.create($el); })()" multiple />
                         </div>
                     </div>
                 </div>
                 <div class="code-wrapper hidden pt-4">
                     <pre class="is-scrollbar-hidden max-h-96 overflow-auto rounded-lg" x-init="hljs.highlightElement($el)">
               <code class="language-html" x-ignore>
-&lt;div class=&quot;filepond fp-bg-filled&quot;&gt;&#13;&#10;    &lt;input type=&quot;file&quot;  x-init="$el._x_filepond = FilePond.create($el)" multiple /&gt;&#13;&#10;  &lt;/div&gt;&#13;&#10;</code>
+&lt;div class=&quot;filepond fp-bg-filled&quot;&gt;&#13;&#10;    &lt;input type=&quot;file&quot;  x-init="(async () => { const { loadFilePond } = await window.__loadEntryModule('filepond.entry'); const FilePond = await loadFilePond(); $el._x_filepond = FilePond.create($el); })()" multiple /&gt;&#13;&#10;  &lt;/div&gt;&#13;&#10;</code>
             </pre>
                 </div>
             </div>
@@ -191,14 +191,14 @@
                     </p>
                     <div class="mt-5">
                         <div class="filepond fp-bordered fp-bg-filled">
-                            <input type="file" x-init="$el._x_filepond = FilePond.create($el)" multiple />
+                            <input type="file" x-init="(async () => { const { loadFilePond } = await window.__loadEntryModule('filepond.entry'); const FilePond = await loadFilePond(); $el._x_filepond = FilePond.create($el); })()" multiple />
                         </div>
                     </div>
                 </div>
                 <div class="code-wrapper hidden pt-4">
                     <pre class="is-scrollbar-hidden max-h-96 overflow-auto rounded-lg" x-init="hljs.highlightElement($el)">
               <code class="language-html" x-ignore>
-&lt;div class=&quot;filepond fp-bordered fp-bg-filled&quot;&gt;&#13;&#10;    &lt;input type=&quot;file&quot;  x-init="$el._x_filepond = FilePond.create($el)" multiple /&gt;&#13;&#10;  &lt;/div&gt;&#13;&#10;</code>
+&lt;div class=&quot;filepond fp-bordered fp-bg-filled&quot;&gt;&#13;&#10;    &lt;input type=&quot;file&quot;  x-init="(async () => { const { loadFilePond } = await window.__loadEntryModule('filepond.entry'); const FilePond = await loadFilePond(); $el._x_filepond = FilePond.create($el); })()" multiple /&gt;&#13;&#10;  &lt;/div&gt;&#13;&#10;</code>
             </pre>
                 </div>
             </div>
@@ -227,14 +227,14 @@
                     </p>
                     <div class="mt-5">
                         <div class="filepond fp-grid fp-bordered [--fp-grid:2]">
-                            <input type="file" x-init="$el._x_filepond = FilePond.create($el)" multiple />
+                            <input type="file" x-init="(async () => { const { loadFilePond } = await window.__loadEntryModule('filepond.entry'); const FilePond = await loadFilePond(); $el._x_filepond = FilePond.create($el); })()" multiple />
                         </div>
                     </div>
                 </div>
                 <div class="code-wrapper hidden pt-4">
                     <pre class="is-scrollbar-hidden max-h-96 overflow-auto rounded-lg" x-init="hljs.highlightElement($el)">
               <code class="language-html" x-ignore>
-&#60;div class=&#34;filepond fp-grid fp-bordered [--fp-grid:2]&#34;&#62;&#13;&#10;    &#60;input type=&#34;file&#34;  x-init="$el._x_filepond = FilePond.create($el)" multiple /&#62;&#13;&#10;  &#60;/div&#62;&#13;&#10;
+&#60;div class=&#34;filepond fp-grid fp-bordered [--fp-grid:2]&#34;&#62;&#13;&#10;    &#60;input type=&#34;file&#34;  x-init="(async () => { const { loadFilePond } = await window.__loadEntryModule('filepond.entry'); const FilePond = await loadFilePond(); $el._x_filepond = FilePond.create($el); })()" multiple /&#62;&#13;&#10;  &#60;/div&#62;&#13;&#10;
               </code>
             </pre>
                 </div>
@@ -264,14 +264,14 @@
                     </p>
                     <div class="mt-5">
                         <div class="filepond fp-grid fp-bordered [--fp-grid:3]">
-                            <input type="file" x-init="$el._x_filepond = FilePond.create($el)" multiple />
+                            <input type="file" x-init="(async () => { const { loadFilePond } = await window.__loadEntryModule('filepond.entry'); const FilePond = await loadFilePond(); $el._x_filepond = FilePond.create($el); })()" multiple />
                         </div>
                     </div>
                 </div>
                 <div class="code-wrapper hidden pt-4">
                     <pre class="is-scrollbar-hidden max-h-96 overflow-auto rounded-lg" x-init="hljs.highlightElement($el)">
               <code class="language-html" x-ignore>
-&#60;div class=&#34;filepond fp-grid fp-bordered [--fp-grid:3]&#34;&#62;&#13;&#10;    &#60;input type=&#34;file&#34;  x-init="$el._x_filepond = FilePond.create($el)" multiple /&#62;&#13;&#10;  &#60;/div&#62;&#13;&#10;
+&#60;div class=&#34;filepond fp-grid fp-bordered [--fp-grid:3]&#34;&#62;&#13;&#10;    &#60;input type=&#34;file&#34;  x-init="(async () => { const { loadFilePond } = await window.__loadEntryModule('filepond.entry'); const FilePond = await loadFilePond(); $el._x_filepond = FilePond.create($el); })()" multiple /&#62;&#13;&#10;  &#60;/div&#62;&#13;&#10;
               </code>
             </pre>
                 </div>
@@ -301,14 +301,14 @@
                     </p>
                     <div class="mt-5">
                         <div class="filepond fp-grid fp-bordered [--fp-grid:4]">
-                            <input type="file" x-init="$el._x_filepond = FilePond.create($el)" multiple />
+                            <input type="file" x-init="(async () => { const { loadFilePond } = await window.__loadEntryModule('filepond.entry'); const FilePond = await loadFilePond(); $el._x_filepond = FilePond.create($el); })()" multiple />
                         </div>
                     </div>
                 </div>
                 <div class="code-wrapper hidden pt-4">
                     <pre class="is-scrollbar-hidden max-h-96 overflow-auto rounded-lg" x-init="hljs.highlightElement($el)">
               <code class="language-html" x-ignore>
-&#60;div class=&#34;filepond fp-grid fp-bordered [--fp-grid:4]&#34;&#62;&#13;&#10;    &#60;input type=&#34;file&#34;  x-init="$el._x_filepond = FilePond.create($el)" multiple /&#62;&#13;&#10;  &#60;/div&#62;&#13;&#10;
+&#60;div class=&#34;filepond fp-grid fp-bordered [--fp-grid:4]&#34;&#62;&#13;&#10;    &#60;input type=&#34;file&#34;  x-init="(async () => { const { loadFilePond } = await window.__loadEntryModule('filepond.entry'); const FilePond = await loadFilePond(); $el._x_filepond = FilePond.create($el); })()" multiple /&#62;&#13;&#10;  &#60;/div&#62;&#13;&#10;
               </code>
             </pre>
                 </div>
@@ -338,33 +338,45 @@
                     </p>
                     <div class="inline-space mt-5 flex flex-wrap items-end">
                         <div class="filepond fp-bordered label-icon w-28">
-                            <input type="file" x-init="$el._x_filepond = FilePond.create($el, {
+                            <input type="file" x-init="(async () => {
+                                const { loadFilePond } = await window.__loadEntryModule('filepond.entry');
+                                const FilePond = await loadFilePond();
+                                $el._x_filepond = FilePond.create($el, {
                                 stylePanelAspectRatio: '1:1',
                                 stylePanelLayout: 'compact circle',
                                 labelIdle: `<svg xmlns='http://www.w3.org/2000/svg' class='size-8' fill='none' viewBox='0 0 24 24' stroke='currentColor'>
                                                   <path stroke-linecap='round' stroke-linejoin='round' stroke-width='2' d='M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12'/>
                                                 </svg>`
-                            })"
+                            });
+                            })()"
                                 accept="image/png, image/jpeg, image/gif" />
                         </div>
                         <div class="filepond fp-bordered label-icon w-24">
-                            <input type="file" x-init="$el._x_filepond = FilePond.create($el, {
+                            <input type="file" x-init="(async () => {
+                                const { loadFilePond } = await window.__loadEntryModule('filepond.entry');
+                                const FilePond = await loadFilePond();
+                                $el._x_filepond = FilePond.create($el, {
                                 stylePanelAspectRatio: '1:1',
                                 stylePanelLayout: 'compact circle',
                                 labelIdle: `<svg xmlns='http://www.w3.org/2000/svg' class='size-8' fill='none' viewBox='0 0 24 24' stroke='currentColor'>
                                                   <path stroke-linecap='round' stroke-linejoin='round' stroke-width='2' d='M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12'/>
                                                 </svg>`
-                            })"
+                            });
+                            })()"
                                 accept="image/png, image/jpeg, image/gif" />
                         </div>
                         <div class="filepond fp-bg-filled label-icon w-20">
-                            <input type="file" x-init="$el._x_filepond = FilePond.create($el, {
+                            <input type="file" x-init="(async () => {
+                                const { loadFilePond } = await window.__loadEntryModule('filepond.entry');
+                                const FilePond = await loadFilePond();
+                                $el._x_filepond = FilePond.create($el, {
                                 stylePanelAspectRatio: '1:1',
                                 stylePanelLayout: 'compact circle',
                                 labelIdle: `<svg xmlns='http://www.w3.org/2000/svg' class='size-8' fill='none' viewBox='0 0 24 24' stroke='currentColor'>
                                                   <path stroke-linecap='round' stroke-linejoin='round' stroke-width='2' d='M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12'/>
                                                 </svg>`
-                            })"
+                            });
+                            })()"
                                 accept="image/png, image/jpeg, image/gif" />
                         </div>
                     </div>

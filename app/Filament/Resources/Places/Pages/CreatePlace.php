@@ -5,15 +5,15 @@ declare(strict_types=1);
 namespace App\Filament\Resources\Places\Pages;
 
 use App\Filament\Resources\Places\PlaceResource;
-use App\Services\AddressFormStateManager; // Importuojame AddressFormStateManager
-use App\Models\Address;
-use Filament\Resources\Pages\CreateRecord;
-use Illuminate\Support\Arr;
-use Illuminate\Support\Facades\Log;
-use Illuminate\Validation\ValidationException;
+use App\Models\Address; // Importuojame AddressFormStateManager
+use App\Services\AddressFormStateManager;
+use App\Rules\Utf8String;
 use Filament\Notifications\Notification;
+use Filament\Resources\Pages\CreateRecord;
 use Illuminate\Http\Exceptions\HttpResponseException;
-use Throwable;
+use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\Validator;
+use Illuminate\Validation\ValidationException;
 
 class CreatePlace extends CreateRecord
 {
@@ -22,7 +22,6 @@ class CreatePlace extends CreateRecord
     // Kadangi dabar naudojame AddressFormStateManager, šis kintamasis nebereikalingas
     // (bet palieku jį užkomentuotą, jei būtų kitų formos laukų, kurie jį naudoja).
     // public ?string $selected_address_data = null;
-
 
     /**
      * Nustato pradinius formos duomenis (kai puslapis užkraunamas).
@@ -46,17 +45,30 @@ class CreatePlace extends CreateRecord
         ];
     }
 
-
     /**
      * Mutuoja duomenis prieš įrašymą.
      */
     protected function mutateFormDataBeforeCreate(array $data): array
     {
+        if (app()->environment(['local', 'testing', 'development'])) {
+            logger()->info('addr.request.raw', [
+                'all' => request()->all(),
+                'query_hex' => collect(request()->query())
+                    ->map(fn ($v) => is_string($v) ? bin2hex($v) : $v)
+                    ->all(),
+                'input_hex' => collect(request()->input())
+                    ->map(fn ($v) => is_string($v) ? bin2hex($v) : $v)
+                    ->all(),
+            ]);
+        }
+
         $addressSnapshot = $data['address_state'] ?? [];
         if (config('app.debug')) {
             \Log::debug('CreatePlace: snapshot received', $addressSnapshot);
         }
         unset($data['address_state']);
+
+        $this->validateAddressFields($addressSnapshot);
 
         /** @var AddressFormStateManager $addressManager */
         $addressManager = app(AddressFormStateManager::class);
@@ -110,13 +122,17 @@ class CreatePlace extends CreateRecord
         $finalLat = null;
         $finalLng = null;
         if (is_numeric($lsLat) && is_numeric($lsLng)) {
-            $finalLat = (float) $lsLat; $finalLng = (float) $lsLng;
+            $finalLat = (float) $lsLat;
+            $finalLng = (float) $lsLng;
         } elseif (is_numeric($sLat) && is_numeric($sLng)) {
-            $finalLat = (float) $sLat; $finalLng = (float) $sLng;
+            $finalLat = (float) $sLat;
+            $finalLng = (float) $sLng;
         } elseif (is_numeric($rLat) && is_numeric($rLng)) {
-            $finalLat = (float) $rLat; $finalLng = (float) $rLng;
+            $finalLat = (float) $rLat;
+            $finalLng = (float) $rLng;
         } elseif (is_numeric($drLat) && is_numeric($drLng)) {
-            $finalLat = (float) $drLat; $finalLng = (float) $drLng;
+            $finalLat = (float) $drLat;
+            $finalLng = (float) $drLng;
         }
 
         // If nothing else provided, try to resolve coordinates from live.suggestions by selected_place_id
@@ -232,6 +248,15 @@ class CreatePlace extends CreateRecord
                 ->first();
         }
 
+        if (app()->environment(['local', 'testing', 'development'])) {
+            logger()->info('addr.save.input', [
+                'payload_utf8' => $addressData,
+                'payload_hex' => collect($addressData)
+                    ->map(fn ($value) => is_string($value) ? bin2hex($value) : $value)
+                    ->all(),
+            ]);
+        }
+
         $addressPayload = [
             'formatted_address' => $addressData['formatted_address'] ?? '',
             'street_name' => $addressData['street_name'] ?? null,
@@ -279,5 +304,28 @@ class CreatePlace extends CreateRecord
             ->success()
             ->seconds(10)
             ->send();
+    }
+
+    /**
+     * @param  array<string, mixed>  $snapshot
+     */
+    private function validateAddressFields(array $snapshot): void
+    {
+        $fields = [
+            'formatted_address',
+            'street_name',
+            'street_number',
+            'postal_code',
+            'city',
+            'country_code',
+        ];
+
+        $rules = [];
+
+        foreach ($fields as $field) {
+            $rules["address_state.manual_fields.{$field}"] = ['nullable', new Utf8String()];
+        }
+
+        Validator::make(['address_state' => $snapshot], $rules)->validate();
     }
 }

@@ -69,11 +69,15 @@
                     </div>
                 </div>
                 <div>
-                    <div x-data x-init="$el._x_grid = new Gridjs.Grid({
-                        from: $refs.table,
-                        sort: true,
-                        search: true,
-                    }).render($refs.wrapper);">
+                    <div x-data x-init="(async () => {
+                        const { loadGridjs } = await window.__loadEntryModule('gridjs.entry');
+                        const Gridjs = await loadGridjs();
+                        $el._x_grid = new Gridjs.Grid({
+                            from: $refs.table,
+                            sort: true,
+                            search: true,
+                        }).render($refs.wrapper);
+                    })()">
                         <div class="is-scrollbar-hidden min-w-full overflow-x-auto">
                             <table x-ref="table" class="w-full text-left">
                                 <thead>
@@ -294,7 +298,11 @@
                             }
                         ],
                         table: null
-                    }" x-init="table = new Gridjs.Grid({ data: products, sort: true, search: true }).render($root);"></div>
+                    }" x-init="(async () => {
+                        const { loadGridjs } = await window.__loadEntryModule('gridjs.entry');
+                        const Gridjs = await loadGridjs();
+                        table = new Gridjs.Grid({ data: products, sort: true, search: true }).render($root);
+                    })()"></div>
                 </div>
             </div>
 
@@ -347,20 +355,24 @@
                     </div>
                 </div>
                 <div>
-                    <div x-data x-init="$el.grid = new Gridjs.Grid({
-                        pagination: true,
-                        search: {
+                    <div x-data x-init="(async () => {
+                        const { loadGridjs } = await window.__loadEntryModule('gridjs.entry');
+                        const Gridjs = await loadGridjs();
+                        $el.grid = new Gridjs.Grid({
+                            pagination: true,
+                            search: {
+                                server: {
+                                    url: (prev, keyword) => `${prev}?search=${keyword}`
+                                }
+                            },
+                            sort: true,
+                            columns: ['Title', 'Director', 'Producer'],
                             server: {
-                                url: (prev, keyword) => `${prev}?search=${keyword}`
+                                url: 'https://swapi.py4e.com/api/films/',
+                                then: data => data.results.map(movie => [movie.title, movie.director, movie.producer])
                             }
-                        },
-                        sort: true,
-                        columns: ['Title', 'Director', 'Producer'],
-                        server: {
-                            url: 'https://swapi.py4e.com/api/films/',
-                            then: data => data.results.map(movie => [movie.title, movie.director, movie.producer])
-                        }
-                    }).render($root);"></div>
+                        }).render($root);
+                    })()"></div>
                 </div>
             </div>
 

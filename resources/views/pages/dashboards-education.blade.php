@@ -7,7 +7,11 @@
             </p>
         </div>
         <div class="flex">
-            <div class="swiper mx-0 mt-4 px-[var(--margin-x)] transition-all duration-[.25s]" x-init="$nextTick(() => new Swiper($el, { slidesPerView: 'auto', spaceBetween: 18 }))">
+            <div class="swiper mx-0 mt-4 px-[var(--margin-x)] transition-all duration-[.25s]" x-init="$nextTick(() => { (async () => {
+                const { loadSwiper } = await window.__loadEntryModule('swiper.entry');
+                const Swiper = await loadSwiper();
+                new Swiper($el, { slidesPerView: 'auto', spaceBetween: 18 });
+            })(); })">
                 <div class="swiper-wrapper">
                     <div
                         class="card flex swiper-slide w-72 shrink-0 justify-between rounded-xl border-l-4 border-primary p-4">
