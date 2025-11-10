@@ -1,3 +1,5 @@
+@reference '../app.css';
+
 @import 'swiper/css/bundle';
 
 :root {

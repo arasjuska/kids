@@ -68,7 +68,7 @@ it('search returns normalized suggestions with caching', function () {
         ->and($first->first())->toMatchArray([
             'place_id' => 'p1',
             'short_address_line' => 'Sodų g. 7, Vilnius',
-            'country_code' => 'LT',
+            'country_code' => 'lt',
         ])
         ->and($first->first()['confidence'])->toBeGreaterThanOrEqual(0.9);
 

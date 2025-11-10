@@ -2,15 +2,18 @@
 
 namespace App\Models;
 
+use App\Casts\SafeJson;
 use App\Enums\AccuracyLevelEnum;
 use App\Enums\AddressTypeEnum;
 use App\Models\Concerns\GeoScopes;
 use App\Observers\AddressObserver;
+use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 
 class Address extends Model
 {
     use GeoScopes;
+    use HasFactory;
 
     protected $fillable = [
         'formatted_address',
@@ -52,7 +55,7 @@ class Address extends Model
         'address_type' => AddressTypeEnum::class,
         'accuracy_level' => AccuracyLevelEnum::class,
         'is_virtual' => 'boolean',
-        'raw_api_response' => 'array',
+        'raw_api_response' => SafeJson::class,
         'osm_id' => 'integer',
         'quality_tier' => 'string',
         'verified_at' => 'datetime',

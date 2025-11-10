@@ -21,6 +21,11 @@ final class GeocodingService implements GeocodingServiceInterface
     private const CACHE_VERSION = 'v2';
 
     private CacheRepository $cache;
+    private array $lastStatuses = [
+        'forward' => null,
+        'reverse' => null,
+        'search' => null,
+    ];
 
     public function __construct(
         private readonly GeoNormalizer $normalizer,
@@ -38,19 +43,20 @@ final class GeocodingService implements GeocodingServiceInterface
 
         if ($cached = $this->cache->get($cacheKey)) {
             $this->logCache('forward', 'hit', $cacheKey, $startedAt);
+            $this->recordStatus('forward', 'ok');
 
             return $cached;
         }
 
         $this->logCache('forward', 'miss', $cacheKey, $startedAt);
 
-        if ($this->breakerOpen()) {
+        if ($this->breakerOpen('forward')) {
             $this->logBreaker('forward', 'open');
 
             return null;
         }
 
-        $result = $this->throttle(fn () => $this->callProvider(fn () => $this->provider->forward([
+        $result = $this->throttle('forward', fn () => $this->callProvider('forward', fn () => $this->provider->forward([
             'raw' => $normalized['raw'],
             'q' => $normalized['q'],
             'cc' => $normalized['cc'],
@@ -61,6 +67,7 @@ final class GeocodingService implements GeocodingServiceInterface
         }
 
         $this->cache->put($cacheKey, $result, $this->ttl('forward'));
+        $this->recordStatus('forward', 'ok');
         $this->logLatency('forward', $cacheKey, $startedAt);
 
         return $result;
@@ -74,19 +81,20 @@ final class GeocodingService implements GeocodingServiceInterface
 
         if ($cached = $this->cache->get($cacheKey)) {
             $this->logCache('reverse', 'hit', $cacheKey, $startedAt);
+            $this->recordStatus('reverse', 'ok');
 
             return $cached;
         }
 
         $this->logCache('reverse', 'miss', $cacheKey, $startedAt);
 
-        if ($this->breakerOpen()) {
+        if ($this->breakerOpen('reverse')) {
             $this->logBreaker('reverse', 'open');
 
             return null;
         }
 
-        $result = $this->throttle(fn () => $this->callProvider(fn () => $this->provider->reverse($lat, $lon)));
+        $result = $this->throttle('reverse', fn () => $this->callProvider('reverse', fn () => $this->provider->reverse($lat, $lon)));
 
         if (! $result instanceof GeocodeResult) {
             return null;
@@ -95,6 +103,7 @@ final class GeocodingService implements GeocodingServiceInterface
         $precise = $this->normalizer->roundForReverse($result->latitude, $result->longitude, $result->accuracyLevel);
         $cacheKey = $this->reverseKey($precise['lat'], $precise['lon']);
         $this->cache->put($cacheKey, $result, $this->ttl('reverse'));
+        $this->recordStatus('reverse', 'ok');
         $this->logLatency('reverse', $cacheKey, $startedAt);
 
         return $result;
@@ -112,19 +121,21 @@ final class GeocodingService implements GeocodingServiceInterface
         if ($cached = $this->cache->get($cacheKey)) {
             $this->logCache('search', 'hit', $cacheKey, $startedAt);
 
+            $this->recordStatus('search', 'ok');
+
             return collect($cached);
         }
 
         $this->logCache('search', 'miss', $cacheKey, $startedAt);
 
-        if ($this->breakerOpen()) {
+        if ($this->breakerOpen('search')) {
             $this->logBreaker('search', 'open');
 
             return collect();
         }
 
-        $raw = $this->throttle(function () use ($normalized, $limit, $options) {
-            return $this->callProviderRaw(fn () => $this->provider->search([
+        $raw = $this->throttle('search', function () use ($normalized, $limit, $options) {
+            return $this->callProviderRaw('search', fn () => $this->provider->search([
                 'raw' => $normalized['raw'],
                 'q' => $normalized['q'],
                 'cc' => $normalized['cc'],
@@ -144,12 +155,36 @@ final class GeocodingService implements GeocodingServiceInterface
             ->values();
 
         $this->cache->put($cacheKey, $mapped->all(), config('geocoding.cache.search_ttl'));
+        $this->recordStatus('search', 'ok');
         $this->logLatency('search', $cacheKey, $startedAt);
 
         return $mapped;
     }
 
-    private function callProvider(callable $callback): ?GeocodeResult
+    public function getLastStatus(string $operation): ?string
+    {
+        return $this->lastStatuses[$operation] ?? null;
+    }
+
+    public function clearStatus(string $operation): void
+    {
+        $this->lastStatuses[$operation] = null;
+    }
+
+    private function recordStatus(string $operation, string $status): void
+    {
+        $this->lastStatuses[$operation] = $status;
+
+        if (in_array($status, ['rate_limited', 'breaker_open'], true)) {
+            Log::notice('geocoding.status', [
+                'operation' => $operation,
+                'status' => $status,
+                'provider' => $this->provider->name(),
+            ]);
+        }
+    }
+
+    private function callProvider(string $operation, callable $callback): ?GeocodeResult
     {
         $attempts = config('geocoding.http.retry.max_attempts');
         $delay = config('geocoding.http.retry.initial_delay_ms');
@@ -163,9 +198,14 @@ final class GeocodingService implements GeocodingServiceInterface
                 }
 
                 $this->resetFailures();
+                $this->recordStatus($operation, 'ok');
 
                 return $this->normalizer->mapProviderPayload($raw);
             } catch (RequestException $e) {
+                if ($this->isRateLimitResponse($e)) {
+                    $this->recordStatus($operation, 'rate_limited');
+                }
+
                 if (! $this->shouldRetry($e)) {
                     $this->recordFailure();
                     throw $e;
@@ -183,7 +223,7 @@ final class GeocodingService implements GeocodingServiceInterface
         return null;
     }
 
-    private function throttle(callable $callback)
+    private function throttle(string $operation, callable $callback)
     {
         $key = 'geo:throttle:'.$this->provider->name();
         $max = max(1, config('geocoding.throttle.rps'));
@@ -199,6 +239,7 @@ final class GeocodingService implements GeocodingServiceInterface
             return $result;
         }
 
+        $this->recordStatus($operation, 'rate_limited');
         $this->logBreaker('throttle', 'blocked');
 
         return null;
@@ -279,7 +320,7 @@ final class GeocodingService implements GeocodingServiceInterface
         ]);
     }
 
-    private function callProviderRaw(callable $callback): array
+    private function callProviderRaw(string $operation, callable $callback): array
     {
         $attempts = config('geocoding.http.retry.max_attempts');
         $delay = config('geocoding.http.retry.initial_delay_ms');
@@ -293,9 +334,14 @@ final class GeocodingService implements GeocodingServiceInterface
                 }
 
                 $this->resetFailures();
+                $this->recordStatus($operation, 'ok');
 
                 return is_array($raw) ? $raw : [];
             } catch (RequestException $e) {
+                if ($this->isRateLimitResponse($e)) {
+                    $this->recordStatus($operation, 'rate_limited');
+                }
+
                 if (! $this->shouldRetry($e)) {
                     $this->recordFailure();
                     throw $e;
@@ -313,7 +359,7 @@ final class GeocodingService implements GeocodingServiceInterface
         return [];
     }
 
-    private function breakerOpen(): bool
+    private function breakerOpen(?string $operation = null): bool
     {
         $state = $this->breakerState();
 
@@ -328,8 +374,15 @@ final class GeocodingService implements GeocodingServiceInterface
         $openedAt = $this->cache->get($this->breakerOpenedKey());
         if ($openedAt && Carbon::parse($openedAt)->addSeconds(config('geocoding.breaker.open_seconds'))->isPast()) {
             $this->cache->put($this->breakerKey(), 'half-open', config('geocoding.breaker.open_seconds'));
+            if ($operation) {
+                $this->recordStatus($operation, 'half-open');
+            }
 
             return false;
+        }
+
+        if ($operation) {
+            $this->recordStatus($operation, 'breaker_open');
         }
 
         return true;
@@ -369,6 +422,13 @@ final class GeocodingService implements GeocodingServiceInterface
             $this->cache->put($this->breakerKey(), 'open', config('geocoding.breaker.open_seconds'));
             $this->cache->put($this->breakerOpenedKey(), now()->toIso8601String(), config('geocoding.breaker.open_seconds'));
         }
+    }
+
+    private function isRateLimitResponse(RequestException $exception): bool
+    {
+        $status = $exception->response?->status();
+
+        return $status === 429;
     }
 
     private function resetFailures(): void

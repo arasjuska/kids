@@ -75,6 +75,18 @@ trait GeoScopes
         float $maxLon,
         array $columns = ['id', 'formatted_address', 'latitude', 'longitude']
     ): Builder {
+        $select = array_values(array_unique(array_merge($columns, ['id'])));
+
+        $connection = $query->getConnection();
+        $driver = $connection->getDriverName();
+
+        if ($driver === 'sqlite') {
+            return $query
+                ->select($select)
+                ->whereBetween('latitude', [$minLat, $maxLat])
+                ->whereBetween('longitude', [$minLon, $maxLon]);
+        }
+
         $polyWkt = sprintf(
             'POLYGON((%F %F,%F %F,%F %F,%F %F,%F %F))',
             $minLon, $minLat,
@@ -83,8 +95,6 @@ trait GeoScopes
             $maxLon, $minLat,
             $minLon, $minLat
         );
-
-        $select = array_values(array_unique(array_merge($columns, ['id'])));
 
         return $query
             ->select($select)

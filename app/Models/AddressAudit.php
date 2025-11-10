@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use App\Casts\SafeJson;
 use Illuminate\Database\Eloquent\Model;
 
 class AddressAudit extends Model
@@ -18,7 +19,7 @@ class AddressAudit extends Model
     ];
 
     protected $casts = [
-        'changed_fields' => 'array',
+        'changed_fields' => SafeJson::class,
         'created_at' => 'datetime',
     ];
 

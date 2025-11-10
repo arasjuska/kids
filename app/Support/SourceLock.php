@@ -135,4 +135,22 @@ final class SourceLock
 
         return $string;
     }
+
+    /**
+     * @param  array<int, string>  $lockedFields
+     */
+    public static function canWrite(string $field, array $lockedFields): bool
+    {
+        if ($lockedFields === []) {
+            return true;
+        }
+
+        $key = trim($field);
+
+        if ($key === '') {
+            return true;
+        }
+
+        return ! in_array($key, $lockedFields, true);
+    }
 }

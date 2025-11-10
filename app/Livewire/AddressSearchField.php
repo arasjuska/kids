@@ -61,6 +61,13 @@ class AddressSearchField extends Component
             $this->model['search_query'] = $trimmed;
         }
 
+        if (app()->environment(['local', 'testing'])) {
+            Log::info('addr:search:input', [
+                'query' => $trimmed,
+                'token' => $this->searchToken,
+            ]);
+        }
+
         if (mb_strlen($trimmed) < $this->minSearchLength) {
             $this->suggestions = [];
             $this->lastExecutedQuery = '';
@@ -100,6 +107,14 @@ class AddressSearchField extends Component
 
         $token = ++$this->searchToken;
 
+        if (app()->environment(['local', 'testing'])) {
+            Log::info('addr:search:perform', [
+                'query' => $q,
+                'normalized' => $normalized,
+                'token' => $token,
+            ]);
+        }
+
         try {
             /** @var GeocodingServiceInterface $svc */
             $svc = app(GeocodingServiceInterface::class);
@@ -133,6 +148,13 @@ class AddressSearchField extends Component
 
     public function select(string $placeId): void
     {
+        if (app()->environment(['local', 'testing'])) {
+            Log::info('addr:search:select', [
+                'place_id' => $placeId,
+                'token' => $this->searchToken,
+            ]);
+        }
+
         $this->model['selected_place_id'] = (string) $placeId;
 
         if (is_array($this->model)) {

@@ -25,7 +25,7 @@ class GeocodeLookupCommand extends Command
 
         $this->table(
             array_keys($payload),
-            [array_map(fn ($value) => is_scalar($value) ? (string) $value : json_encode($value, JSON_PRETTY_PRINT), $payload)]
+            [array_map(fn ($value) => is_scalar($value) ? (string) $value : json_encode($value, JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE | JSON_INVALID_UTF8_SUBSTITUTE), $payload)]
         );
 
         return self::SUCCESS;

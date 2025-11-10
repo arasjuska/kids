@@ -65,10 +65,13 @@
                                 <div>
                                     <span class="font-medium text-slate-600 dark:text-navy-100">Post Content</span>
                                     <div class="mt-1.5 w-full">
-                                        <div class="h-48" x-init="$el._x_quill = new Quill($el, {
-                                            modules: {
-                                                toolbar: [
-                                                    ['bold', 'italic', 'underline', 'strike'], // toggled buttons
+                                        <div class="h-48" x-init="(async () => {
+                                            const { loadQuill } = await window.__loadEntryModule('quill.entry');
+                                            const Quill = await loadQuill();
+                                            $el._x_quill = new Quill($el, {
+                                                modules: {
+                                                    toolbar: [
+                                                        ['bold', 'italic', 'underline', 'strike'], // toggled buttons
                                                     ['blockquote', 'code-block'],
                                                     [{ header: 1 }, { header: 2 }], // custom button values
                                                     [{ list: 'ordered' }, { list: 'bullet' }],
@@ -82,16 +85,21 @@
                                                     [{ align: [] }],
                                                     ['clean'], // remove formatting button
                                                 ],
-                                            },
-                                            placeholder: 'Enter your content...',
-                                            theme: 'snow',
-                                        })"></div>
+                                                },
+                                                placeholder: 'Enter your content...',
+                                                theme: 'snow',
+                                            });
+                                        })()"></div>
                                     </div>
                                 </div>
                                 <div>
                                     <span class="font-medium text-slate-600 dark:text-navy-100">Post Images</span>
                                     <div class="filepond fp-bordered fp-grid mt-1.5 [--fp-grid:2]">
-                                        <input type="file" x-init="$el._x_filepond = FilePond.create($el)" multiple />
+                                        <input type="file" x-init="(async () => {
+                                            const { loadFilePond } = await window.__loadEntryModule('filepond.entry');
+                                            const FilePond = await loadFilePond();
+                                            $el._x_filepond = FilePond.create($el);
+                                        })()" multiple />
                                     </div>
                                 </div>
                             </div>

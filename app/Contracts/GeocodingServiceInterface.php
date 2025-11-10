@@ -16,4 +16,8 @@ interface GeocodingServiceInterface
      * @return Collection<int, array<string, mixed>>
      */
     public function search(string $query, array $options = []): Collection;
+
+    public function getLastStatus(string $operation): ?string;
+
+    public function clearStatus(string $operation): void;
 }

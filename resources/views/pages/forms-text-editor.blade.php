@@ -45,7 +45,10 @@
                     </p>
                     <div class="mt-5">
                         <div class="w-full">
-                            <div class="h-48" x-init="$el._x_quill = new Quill($el, {
+                            <div class="h-48" x-init="(async () => {
+                                const { loadQuill } = await window.__loadEntryModule('quill.entry');
+                                const Quill = await loadQuill();
+                                $el._x_quill = new Quill($el, {
                                 modules: {
                                     toolbar: [
                                         ['bold', 'italic', 'underline', 'strike'], // toggled buttons
@@ -65,7 +68,8 @@
                                 },
                                 placeholder: 'Enter your content...',
                                 theme: 'snow',
-                            })"></div>
+                            });
+                            })()"></div>
                         </div>
                     </div>
                 </div>
@@ -101,7 +105,10 @@
                     </p>
                     <div class="mt-5 w-full">
 
-                        <div class="h-48" x-init="$el._x_quill = new Quill($el, {
+                        <div class="h-48" x-init="(async () => {
+                            const { loadQuill } = await window.__loadEntryModule('quill.entry');
+                            const Quill = await loadQuill();
+                            $el._x_quill = new Quill($el, {
                             modules: {
                                 toolbar: [
                                     ['bold', 'italic', 'underline'],
@@ -115,7 +122,8 @@
                             },
                             placeholder: 'Enter your content...',
                             theme: 'snow',
-                        })"></div>
+                        });
+                        })()"></div>
 
                     </div>
                 </div>
@@ -151,7 +159,10 @@
                     </p>
                     <div class="mt-5">
                         <div class="ql-header-filled w-full">
-                            <div class="h-48" x-init="$el._x_quill = new Quill($el, {
+                            <div class="h-48" x-init="(async () => {
+                                const { loadQuill } = await window.__loadEntryModule('quill.entry');
+                                const Quill = await loadQuill();
+                                $el._x_quill = new Quill($el, {
                                 modules: {
                                     toolbar: [
                                         ['bold', 'italic', 'underline', 'strike'], // toggled buttons
@@ -171,7 +182,8 @@
                                 },
                                 placeholder: 'Enter your content...',
                                 theme: 'snow',
-                            })"></div>
+                            });
+                            })()"></div>
                         </div>
                     </div>
                 </div>
@@ -207,19 +219,23 @@
                     </p>
                     <div class="mt-5">
                         <div class="ql-header-filled w-full">
-                            <div class="h-48" x-init="$el._x_quill = new Quill($el, {
-                                modules: {
-                                    toolbar: [
-                                        ['bold', 'italic', 'underline', 'strike'],
-                                        ['blockquote', 'code-block'],
-                                        [{ header: [1, 2, 3, 4, 5, 6, false] }],
-                                        [{ color: [] }, { background: [] }],
-                                        ['clean'],
-                                    ]
-                                },
-                                placeholder: 'Enter your content...',
-                                theme: 'snow',
-                            })"></div>
+                            <div class="h-48" x-init="(async () => {
+                                const { loadQuill } = await window.__loadEntryModule('quill.entry');
+                                const Quill = await loadQuill();
+                                $el._x_quill = new Quill($el, {
+                                    modules: {
+                                        toolbar: [
+                                            ['bold', 'italic', 'underline', 'strike'],
+                                            ['blockquote', 'code-block'],
+                                            [{ header: [1, 2, 3, 4, 5, 6, false] }],
+                                            [{ color: [] }, { background: [] }],
+                                            ['clean'],
+                                        ]
+                                    },
+                                    placeholder: 'Enter your content...',
+                                    theme: 'snow',
+                                });
+                            })()"></div>
                         </div>
                     </div>
                 </div>

@@ -231,7 +231,11 @@
     <main class="main-content pos-app w-full px-[var(--margin-x)] pb-6 transition-all duration-[.25s]">
         <div class="mt-3 grid grid-cols-12 gap-4 sm:gap-5 lg:gap-6">
             <div class="col-span-12 sm:col-span-6 lg:col-span-8">
-                <div class="swiper" x-init="$nextTick(() => $el._x_swiper = new Swiper($el, { slidesPerView: 'auto', spaceBetween: 14, navigation: { nextEl: '.next-btn', prevEl: '.prev-btn' } }))">
+                <div class="swiper" x-init="$nextTick(() => { (async () => {
+                        const { loadSwiper } = await window.__loadEntryModule('swiper.entry');
+                        const Swiper = await loadSwiper();
+                        $el._x_swiper = new Swiper($el, { slidesPerView: 'auto', spaceBetween: 14, navigation: { nextEl: '.next-btn', prevEl: '.prev-btn' } });
+                    })(); })">
                     <div class="flex items-center justify-between">
                         <p class="text-base font-medium text-slate-700 dark:text-navy-100">
                             Categories

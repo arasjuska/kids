@@ -7,10 +7,12 @@ namespace App\Filament\Resources\Places\Pages;
 use App\Filament\Resources\Places\PlaceResource;
 use App\Models\Address; // Importuojame AddressFormStateManager
 use App\Services\AddressFormStateManager;
+use App\Rules\Utf8String;
 use Filament\Notifications\Notification;
 use Filament\Resources\Pages\CreateRecord;
 use Illuminate\Http\Exceptions\HttpResponseException;
 use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\Validator;
 use Illuminate\Validation\ValidationException;
 
 class CreatePlace extends CreateRecord
@@ -48,11 +50,25 @@ class CreatePlace extends CreateRecord
      */
     protected function mutateFormDataBeforeCreate(array $data): array
     {
+        if (app()->environment(['local', 'testing', 'development'])) {
+            logger()->info('addr.request.raw', [
+                'all' => request()->all(),
+                'query_hex' => collect(request()->query())
+                    ->map(fn ($v) => is_string($v) ? bin2hex($v) : $v)
+                    ->all(),
+                'input_hex' => collect(request()->input())
+                    ->map(fn ($v) => is_string($v) ? bin2hex($v) : $v)
+                    ->all(),
+            ]);
+        }
+
         $addressSnapshot = $data['address_state'] ?? [];
         if (config('app.debug')) {
             \Log::debug('CreatePlace: snapshot received', $addressSnapshot);
         }
         unset($data['address_state']);
+
+        $this->validateAddressFields($addressSnapshot);
 
         /** @var AddressFormStateManager $addressManager */
         $addressManager = app(AddressFormStateManager::class);
@@ -232,6 +248,15 @@ class CreatePlace extends CreateRecord
                 ->first();
         }
 
+        if (app()->environment(['local', 'testing', 'development'])) {
+            logger()->info('addr.save.input', [
+                'payload_utf8' => $addressData,
+                'payload_hex' => collect($addressData)
+                    ->map(fn ($value) => is_string($value) ? bin2hex($value) : $value)
+                    ->all(),
+            ]);
+        }
+
         $addressPayload = [
             'formatted_address' => $addressData['formatted_address'] ?? '',
             'street_name' => $addressData['street_name'] ?? null,
@@ -279,5 +304,28 @@ class CreatePlace extends CreateRecord
             ->success()
             ->seconds(10)
             ->send();
+    }
+
+    /**
+     * @param  array<string, mixed>  $snapshot
+     */
+    private function validateAddressFields(array $snapshot): void
+    {
+        $fields = [
+            'formatted_address',
+            'street_name',
+            'street_number',
+            'postal_code',
+            'city',
+            'country_code',
+        ];
+
+        $rules = [];
+
+        foreach ($fields as $field) {
+            $rules["address_state.manual_fields.{$field}"] = ['nullable', new Utf8String()];
+        }
+
+        Validator::make(['address_state' => $snapshot], $rules)->validate();
     }
 }

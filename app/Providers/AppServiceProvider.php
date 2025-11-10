@@ -18,7 +18,7 @@ class AppServiceProvider extends ServiceProvider
     public function register(): void
     {
         $this->app->singleton(AddressNormalizer::class);
-        $this->app->singleton(GeocodingServiceInterface::class, GeocodingService::class);
+        $this->app->bind(GeocodingServiceInterface::class, GeocodingService::class);
     }
 
     /**

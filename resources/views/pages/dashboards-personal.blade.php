@@ -1135,7 +1135,11 @@
                     </div>
                     <div class="card">
                         <div>
-                            <div class="swiper" x-init="$nextTick(() => $el._x_swiper = new Swiper($el, { pagination: { el: '.swiper-pagination', clickable: true } }))">
+                            <div class="swiper" x-init="$nextTick(() => { (async () => {
+                                const { loadSwiper } = await window.__loadEntryModule('swiper.entry');
+                                const Swiper = await loadSwiper();
+                                $el._x_swiper = new Swiper($el, { pagination: { el: '.swiper-pagination', clickable: true } });
+                            })(); })">
                                 <div class="swiper-wrapper">
                                     <div class="swiper-slide p-4 sm:p-5">
                                         <div class="flex items-center justify-between">

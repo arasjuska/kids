@@ -80,6 +80,16 @@
         window.addEventListener("DOMContentLoaded", () => Alpine.start());
     </script>
 
+    @php
+        $shouldLoadDemoVendors = !app()->environment('testing')
+            && !empty($load_demo_vendors ?? null)
+            && file_exists(public_path('build/manifest.json'));
+    @endphp
+
+    @if ($shouldLoadDemoVendors)
+        @vite(['resources/js/entries/demo-vendors.entry.js'])
+    @endif
+
     @isset($script)
         {{ $script }}
     @endisset

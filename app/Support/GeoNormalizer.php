@@ -3,6 +3,8 @@
 namespace App\Support;
 
 use App\Data\GeocodeResult;
+use App\Support\AddressNormalizer;
+use App\Support\NominatimResultMapper;
 use Illuminate\Support\Arr;
 use Illuminate\Support\Str;
 
@@ -48,10 +50,11 @@ final class GeoNormalizer
         $placeId = (string) Arr::get($raw, 'place_id', Str::uuid()->toString());
         $formatted = Str::of((string) Arr::get($raw, 'display_name', Arr::get($raw, 'formatted')))->trim()->toString();
         $short = Str::of((string) Arr::get($raw, 'short_address', $formatted))->trim()->toString();
-        $city = Arr::get($raw, 'address.city') ?? Arr::get($raw, 'address.town') ?? Arr::get($raw, 'city');
-        $city = $city ? Str::title(Str::of($city)->trim()) : null;
-        $countryCode = Arr::get($raw, 'address.country_code', Arr::get($raw, 'country_code'));
-        $countryCode = $countryCode ? Str::upper(Str::substr($countryCode, 0, 2)) : null;
+
+        $mappedAddress = NominatimResultMapper::toAddressArray($raw);
+        $city = $mappedAddress['city'] ?? null;
+        $countryCodeRaw = $mappedAddress['country_code'] ?? Arr::get($raw, 'address.country_code', Arr::get($raw, 'country_code'));
+        $countryCode = $countryCodeRaw ? Str::upper(Str::substr($countryCodeRaw, 0, 2)) : null;
         $accuracy = Str::upper((string) Arr::get($raw, 'accuracy', Arr::get($raw, 'accuracy_level', 'UNKNOWN')));
         $confidenceValue = Arr::get($raw, 'confidence', Arr::get($raw, 'confidence_score'));
         $baselineConfidence = $this->inferConfidence($raw, $accuracy);
@@ -78,31 +81,72 @@ final class GeoNormalizer
         );
     }
 
+    /**
+     * Map provider payload into the canonical suggestion schema.
+     *
+     * Ensures keys: street, house_number, city, region, postcode, country, country_code (lowercase), and
+     * produces an address_signature that is a 64-character lowercase hex string when sufficient data exists.
+     *
+     * @return array<string, mixed>
+     */
     public function mapProviderSuggestion(array $raw): array
     {
         $dto = $this->mapProviderPayload($raw);
         $address = Arr::get($raw, 'address', []);
+        $mappedAddress = NominatimResultMapper::toAddressArray($raw);
 
-        return array_filter([
+        $street = $mappedAddress['street'] ?? Arr::get($address, 'road');
+        $houseNumber = $mappedAddress['house_number'] ?? Arr::get($address, 'house_number');
+        $city = $mappedAddress['city'] ?? $dto->city;
+        $region = $mappedAddress['region'] ?? Arr::get($address, 'state');
+        $postcode = $mappedAddress['postcode'] ?? Arr::get($address, 'postcode');
+        $country = $mappedAddress['country'] ?? Arr::get($address, 'country');
+        $countryCode = $mappedAddress['country_code'] ?? $dto->countryCode;
+        $countryCode = $countryCode ? Str::lower($countryCode) : null;
+
+        $result = [
             'place_id' => $dto->placeId,
             'short_address_line' => $dto->shortAddressLine,
             'context_line' => Arr::get($raw, 'display_name', Arr::get($address, 'city')),
             'formatted_address' => $dto->formattedAddress,
             'latitude' => $dto->latitude,
             'longitude' => $dto->longitude,
-            'street_name' => Arr::get($address, 'road'),
-            'street_number' => Arr::get($address, 'house_number'),
-            'city' => $dto->city,
-            'state' => Arr::get($address, 'state'),
-            'postal_code' => Arr::get($address, 'postcode'),
-            'country' => Arr::get($address, 'country'),
-            'country_code' => $dto->countryCode,
+            'street' => $street,
+            'house_number' => $houseNumber,
+            'city' => $city,
+            'region' => $region,
+            'postcode' => $postcode,
+            'country' => $country,
+            'country_code' => $countryCode,
             'confidence' => $dto->providerConfidence,
             'provider' => Str::lower((string) Arr::get($raw, 'provider', 'nominatim')),
             'osm_type' => Arr::get($raw, 'osm_type'),
             'osm_id' => Arr::get($raw, 'osm_id'),
             'raw_payload' => $this->sanitizeRawPayload($raw),
-        ], static fn ($value, $key) => $key === 'confidence' || $key === 'raw_payload' || $value !== null || $value === 0.0 || $value === '0', ARRAY_FILTER_USE_BOTH);
+        ];
+
+        $signature = app(AddressNormalizer::class)->signature([
+            'street_name' => $street,
+            'street_number' => $houseNumber,
+            'city' => $city,
+            'country_code' => $countryCode,
+            'postal_code' => $postcode,
+        ]);
+
+        if ($signature !== null) {
+            $hexSignature = strtolower(bin2hex($signature));
+            $result['address_signature'] = $hexSignature;
+        }
+
+        return array_merge([
+            'street' => null,
+            'house_number' => null,
+            'city' => null,
+            'region' => null,
+            'postcode' => null,
+            'country' => null,
+            'country_code' => null,
+        ], $result);
     }
 
     private function sanitizeRawPayload(array $raw): array

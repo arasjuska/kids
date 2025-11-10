@@ -8,10 +8,12 @@ use App\Contracts\GeocodingServiceInterface;
 use App\Enums\AddressStateEnum;
 use App\Enums\AddressTypeEnum;
 use App\Enums\InputModeEnum;
+use App\Support\SourceLock;
 use Illuminate\Support\Arr;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Str;
+use InvalidArgumentException;
 use RuntimeException;
 use Throwable;
 
@@ -63,6 +65,11 @@ class AddressFormStateManager
      * @var array<string, bool>
      */
     private array $lockedFields = [];
+
+    /**
+     * @var array<string, bool>
+     */
+    private array $sourceFieldLocks = [];
 
     private Collection $suggestions;
 
@@ -143,11 +150,19 @@ class AddressFormStateManager
                 continue;
             }
 
-            if ($this->manualFields[$field] === null) {
+            $raw = $this->manualFields[$field];
+
+            if (is_string($raw)) {
+                $raw = $this->sanitizeUtf8($raw);
+            }
+
+            if ($raw === null) {
+                $this->manualFields[$field] = null;
+
                 continue;
             }
 
-            $trimmed = trim((string) $this->manualFields[$field]);
+            $trimmed = trim((string) $raw);
             $this->manualFields[$field] = $trimmed === '' ? null : $trimmed;
         }
 
@@ -264,6 +279,26 @@ class AddressFormStateManager
     }
 
     /**
+     * Pažymi laukus, kurie yra užrakinti dėl SourceLock ir negali būti redaguojami.
+     *
+     * @param  array<int, string>  $fields
+     */
+    public function setSourceFieldLocks(array $fields): void
+    {
+        $this->sourceFieldLocks = [];
+
+        foreach ($fields as $field) {
+            $key = trim((string) $field);
+
+            if ($key === '') {
+                continue;
+            }
+
+            $this->sourceFieldLocks[$key] = true;
+        }
+    }
+
+    /**
      * Apdoroja gyvą vartotojo įvestį paieškos laukelyje.
      */
     public function handleSearchInput(string $query, ?string $countryCode = null): void
@@ -335,6 +370,8 @@ class AddressFormStateManager
      */
     public function handleSearchResults(Collection $results): void
     {
+        $this->applySearchStatusWarnings();
+
         $this->suggestions = $results
             ->take(8)
             ->map(fn ($item) => $this->prepareSuggestion($item))
@@ -346,7 +383,8 @@ class AddressFormStateManager
 
         if ($this->suggestions->isEmpty()) {
             $this->currentState = AddressStateEnum::NO_RESULTS;
-            $this->messages['warnings'][] = 'Rezultatų nerasta. Galite tęsti rankiniu režimu.';
+        $this->pushWarning(__('address.no_results'));
+            $this->clearSearchStatus();
 
             return;
         }
@@ -376,6 +414,8 @@ class AddressFormStateManager
                 $this->autoSelectAlert = true;
             }
         }
+
+        $this->clearSearchStatus();
     }
 
     /**
@@ -496,6 +536,17 @@ class AddressFormStateManager
             return;
         }
 
+        if (! SourceLock::canWrite($key, $this->getSourceFieldLocks())) {
+            throw new InvalidArgumentException(sprintf(
+                '„%s“ laukas yra užrakintas ir negali būti keičiamas be override.',
+                str_replace('_', ' ', $key)
+            ));
+        }
+
+        if (is_string($value)) {
+            $value = $this->sanitizeUtf8($value);
+        }
+
         $this->manualFields[$key] = $value;
         $this->lockedFields[$key] = true;
         $this->currentState = AddressStateEnum::MANUAL;
@@ -604,6 +655,7 @@ class AddressFormStateManager
             'manual_fields' => $this->manualFields,
             'coordinates' => $this->coordinates,
             'locked_fields' => array_keys(array_filter($this->lockedFields)),
+            'source_field_locks' => array_keys(array_filter($this->sourceFieldLocks)),
             'auto_select_alert' => $this->autoSelectAlert,
             'messages' => $this->messages,
             'confidence_score' => $this->confidenceScore,
@@ -648,6 +700,8 @@ class AddressFormStateManager
         $this->coordinates = array_merge($this->coordinates, $state['coordinates'] ?? []);
         $locked = $state['locked_fields'] ?? [];
         $this->lockedFields = is_array($locked) ? array_fill_keys($locked, true) : $this->lockedFields;
+        $sourceLocked = $state['source_field_locks'] ?? [];
+        $this->sourceFieldLocks = is_array($sourceLocked) ? array_fill_keys($sourceLocked, true) : $this->sourceFieldLocks;
         $this->autoSelectAlert = (bool) ($state['auto_select_alert'] ?? false);
         $this->messages = array_merge($this->messages, Arr::only($state['messages'] ?? [], ['errors', 'warnings']));
         $this->confidenceScore = $state['confidence_score'] ?? $this->confidenceScore;
@@ -665,6 +719,19 @@ class AddressFormStateManager
     {
         $errors = [];
         $warnings = [];
+
+        if (app()->environment(['local', 'testing'])) {
+            Log::info('addr:manager:validate:start', [
+                'state' => $this->currentState->value,
+                'input_mode' => $this->inputMode->value,
+                'manual' => Arr::only($this->manualFields, [
+                    'street_name',
+                    'street_number',
+                    'city',
+                    'postal_code',
+                ]),
+            ]);
+        }
 
         if ($this->currentState === AddressStateEnum::IDLE && ! $this->hasMeaningfulInput()) {
             $errors[] = 'Prašome įvesti ir pasirinkti adresą.';
@@ -743,6 +810,15 @@ class AddressFormStateManager
             $errors[] = 'Nenurodytos koordinatės.';
         }
 
+        $hasCity = filled($this->manualFields['city'] ?? null);
+        $hasStreet = filled($this->manualFields['street_name'] ?? null);
+        $hasStreetNumber = filled($this->manualFields['street_number'] ?? null);
+
+        if ($hasCity && $hasStreet && ! $hasStreetNumber && ! is_numeric($this->confidenceScore ?? null)) {
+            $this->confidenceScore = 0.65;
+            $this->addressType = AddressTypeEnum::LOW_CONFIDENCE;
+        }
+
         if (is_numeric($this->confidenceScore ?? null)) {
             $this->confidenceScore = (float) $this->confidenceScore;
             $this->addressType = match (true) {
@@ -801,6 +877,15 @@ class AddressFormStateManager
             'osm_id' => $osmId,
             'address_signature' => $addressSignature,
         ]);
+
+        if (app()->environment(['local', 'testing'])) {
+            Log::info('addr:manager:validate:end', [
+                'errors' => $errors,
+                'warnings' => $warnings,
+                'address_type' => $this->addressType->value,
+                'confidence' => $this->confidenceScore,
+            ]);
+        }
 
         return compact('data', 'errors', 'warnings');
     }
@@ -864,6 +949,11 @@ class AddressFormStateManager
         return array_keys(array_filter($this->lockedFields));
     }
 
+    public function getSourceFieldLocks(): array
+    {
+        return array_keys(array_filter($this->sourceFieldLocks));
+    }
+
     public function isAutoSelectAlertVisible(): bool
     {
         return $this->autoSelectAlert;
@@ -872,6 +962,15 @@ class AddressFormStateManager
     public function getMessages(): array
     {
         return $this->messages;
+    }
+
+    public function pushMessage(string $type, string $message): void
+    {
+        if (! array_key_exists($type, $this->messages)) {
+            $this->messages[$type] = [];
+        }
+
+        $this->messages[$type][] = $message;
     }
 
     public function getRawApiPayload(): array
@@ -908,12 +1007,45 @@ class AddressFormStateManager
         return ($this->lockedFields[$field] ?? false) === true;
     }
 
+    private function isSourceLockedField(string $field): bool
+    {
+        return ($this->sourceFieldLocks[$field] ?? false) === true;
+    }
+
     private function clearMessages(): void
     {
         $this->messages = [
             'errors' => [],
             'warnings' => [],
         ];
+    }
+
+    private function applySearchStatusWarnings(): void
+    {
+        $status = null;
+        if (method_exists($this->geocodingService, 'getLastStatus')) {
+            $status = $this->geocodingService->getLastStatus('search');
+        }
+
+        if ($status === 'rate_limited') {
+            $this->pushWarning(__('address.rate_limited'));
+        } elseif ($status === 'breaker_open') {
+            $this->pushWarning(__('address.provider_offline'));
+        }
+    }
+
+    private function pushWarning(string $message): void
+    {
+        if (! in_array($message, $this->messages['warnings'], true)) {
+            $this->messages['warnings'][] = $message;
+        }
+    }
+
+    private function clearSearchStatus(): void
+    {
+        if (method_exists($this->geocodingService, 'clearStatus')) {
+            $this->geocodingService->clearStatus('search');
+        }
     }
 
     /**
@@ -953,6 +1085,28 @@ class AddressFormStateManager
 
         $latitude = $rawItem['latitude'] ?? $rawItem['lat'] ?? ($payload['latitude'] ?? $payload['lat'] ?? null);
         $longitude = $rawItem['longitude'] ?? $rawItem['lon'] ?? ($payload['longitude'] ?? $payload['lon'] ?? null);
+        $street = $rawItem['street_name']
+            ?? $payload['street_name']
+            ?? $rawItem['street']
+            ?? $payload['street']
+            ?? null;
+        $houseNumber = $rawItem['street_number']
+            ?? $payload['street_number']
+            ?? $rawItem['house_number']
+            ?? $payload['house_number']
+            ?? null;
+        $postalCode = $rawItem['postal_code']
+            ?? $payload['postal_code']
+            ?? $rawItem['postcode']
+            ?? $payload['postcode']
+            ?? null;
+        $state = $rawItem['state']
+            ?? $payload['state']
+            ?? $rawItem['region']
+            ?? $payload['region']
+            ?? null;
+        $countryCodeRaw = $rawItem['country_code'] ?? $payload['country_code'] ?? null;
+        $countryCode = $countryCodeRaw ? Str::upper((string) $countryCodeRaw) : null;
 
         return [
             'place_id' => (string) ($rawItem['place_id'] ?? $payload['place_id'] ?? ''),
@@ -961,13 +1115,13 @@ class AddressFormStateManager
             'formatted_address' => $rawItem['formatted_address'] ?? $payload['formatted_address'] ?? ($rawItem['display_name'] ?? $payload['display_name'] ?? ''),
             'latitude' => is_numeric($latitude) ? (float) $latitude : null,
             'longitude' => is_numeric($longitude) ? (float) $longitude : null,
-            'street_name' => $rawItem['street_name'] ?? $payload['street_name'] ?? null,
-            'street_number' => $rawItem['street_number'] ?? $payload['street_number'] ?? null,
+            'street_name' => $street,
+            'street_number' => $houseNumber,
             'city' => $rawItem['city'] ?? $payload['city'] ?? null,
-            'state' => $rawItem['state'] ?? $payload['state'] ?? null,
-            'postal_code' => $rawItem['postal_code'] ?? $payload['postal_code'] ?? null,
+            'state' => $state,
+            'postal_code' => $postalCode,
             'country' => $rawItem['country'] ?? $payload['country'] ?? null,
-            'country_code' => isset($rawItem['country_code']) ? Str::upper((string) $rawItem['country_code']) : (isset($payload['country_code']) ? Str::upper((string) $payload['country_code']) : null),
+            'country_code' => $countryCode,
             'confidence' => isset($rawItem['confidence']) ? (float) $rawItem['confidence'] : (isset($payload['confidence']) ? (float) $payload['confidence'] : null),
             'provider' => Str::lower((string) ($rawItem['provider'] ?? $payload['provider'] ?? 'nominatim')),
             'osm_type' => $rawItem['osm_type'] ?? $payload['osm_type'] ?? null,
@@ -981,5 +1135,19 @@ class AddressFormStateManager
         if (config('app.debug')) {
             Log::debug($message, $context);
         }
+    }
+
+    private function sanitizeUtf8(?string $value): ?string
+    {
+        if ($value === null) {
+            return null;
+        }
+
+        $clean = @iconv('UTF-8', 'UTF-8//IGNORE', $value);
+        if ($clean === false) {
+            return null;
+        }
+
+        return preg_replace('/[^\P{C}\n\t]/u', '', $clean) ?? '';
     }
 }

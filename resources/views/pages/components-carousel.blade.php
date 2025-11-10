@@ -46,7 +46,11 @@
                             code for detail of usage.
                         </p>
                         <div class="mt-5">
-                            <div x-init="$nextTick(() => $el._x_swiper = new Swiper($el, { navigation: { prevEl: '.swiper-button-prev', nextEl: '.swiper-button-next' } }))" class="swiper rounded-lg">
+                            <div x-init="$nextTick(() => { (async () => {
+                                const { loadSwiper } = await window.__loadEntryModule('swiper.entry');
+                                const Swiper = await loadSwiper();
+                                $el._x_swiper = new Swiper($el, { navigation: { prevEl: '.swiper-button-prev', nextEl: '.swiper-button-next' } });
+                            })(); })" class="swiper rounded-lg">
                                 <div class="swiper-wrapper">
                                     <div class="swiper-slide">
                                         <img class="h-full w-full object-cover"
@@ -102,7 +106,11 @@
                             code for detail of usage.
                         </p>
                         <div class="mt-5">
-                            <div x-init="$nextTick(() => $el._x_swiper = new Swiper($el, { navigation: { prevEl: '.swiper-button-prev', nextEl: '.swiper-button-next' }, pagination: { el: '.swiper-pagination', type: 'progressbar' }, lazy: true, }))" class="swiper rounded-lg">
+                            <div x-init="$nextTick(() => { (async () => {
+                                const { loadSwiper } = await window.__loadEntryModule('swiper.entry');
+                                const Swiper = await loadSwiper();
+                                $el._x_swiper = new Swiper($el, { navigation: { prevEl: '.swiper-button-prev', nextEl: '.swiper-button-next' }, pagination: { el: '.swiper-pagination', type: 'progressbar' }, lazy: true, });
+                            })(); })" class="swiper rounded-lg">
                                 <div class="swiper-wrapper">
                                     <div class="swiper-slide h-full">
                                         <img class="h-full w-full object-cover"
@@ -166,7 +174,11 @@
                             code for detail of usage.
                         </p>
                         <div class="mt-5">
-                            <div x-init="$nextTick(() => $el._x_swiper = new Swiper($el, { slidesPerView: 'auto', spaceBetween: 30, pagination: { el: '.swiper-pagination', clickable: true, } }))" class="swiper">
+                            <div x-init="$nextTick(() => { (async () => {
+                                const { loadSwiper } = await window.__loadEntryModule('swiper.entry');
+                                const Swiper = await loadSwiper();
+                                $el._x_swiper = new Swiper($el, { slidesPerView: 'auto', spaceBetween: 30, pagination: { el: '.swiper-pagination', clickable: true, } });
+                            })(); })" class="swiper">
                                 <div class="swiper-wrapper">
                                     <div class="swiper-slide w-10/12!">
                                         <img class="h-full w-full rounded-lg object-cover"

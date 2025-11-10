@@ -20,6 +20,11 @@ final class AddressNormalizer
             return null;
         }
 
+        $street = $this->sanitize($street);
+        if ($street === null) {
+            return null;
+        }
+
         $street = $this->collapse($street);
         $street = mb_strtolower($street);
 
@@ -36,6 +41,11 @@ final class AddressNormalizer
 
     public function normalizeNumber(?string $number): ?string
     {
+        if ($number === null) {
+            return null;
+        }
+
+        $number = $this->sanitize($number);
         if ($number === null) {
             return null;
         }
@@ -78,7 +88,10 @@ final class AddressNormalizer
     }
 
     /**
+     * Build a canonical SHA-256 signature from normalized address parts.
+     *
      * @param  array{street_name:?string,street_number:?string,city:?string,country_code:?string,postal_code?:?string}  $parts
+     * @return string|null Binary 32-byte hash (callers should bin2hex()/strtolower() if they need hex output).
      */
     public function signature(array $parts): ?string
     {
@@ -97,6 +110,11 @@ final class AddressNormalizer
             return null;
         }
 
+        $value = $this->sanitize($value);
+        if ($value === null) {
+            return null;
+        }
+
         $value = mb_strtolower($this->collapse($value));
         $value = preg_replace('/[^\p{L}\p{N}\/\s]/u', '', $value);
         $value = trim(preg_replace('/\s+/u', ' ', $value) ?? '');
@@ -110,6 +128,11 @@ final class AddressNormalizer
             return null;
         }
 
+        $value = $this->sanitize($value);
+        if ($value === null) {
+            return null;
+        }
+
         $value = strtoupper($this->collapse($value));
         $value = preg_replace('/[^A-Z]/', '', $value);
 
@@ -118,6 +141,7 @@ final class AddressNormalizer
 
     private function collapse(string $value): string
     {
+        $value = $this->sanitize($value) ?? '';
         $value = trim($value);
 
         return preg_replace('/\s+/u', ' ', $value) ?? '';
@@ -135,5 +159,21 @@ final class AddressNormalizer
         }
 
         return trim(preg_replace('/\s+/u', ' ', $value) ?? '');
+    }
+
+    private function sanitize(?string $value): ?string
+    {
+        if ($value === null) {
+            return null;
+        }
+
+        $clean = @iconv('UTF-8', 'UTF-8//IGNORE', $value);
+        if ($clean === false) {
+            return null;
+        }
+
+        $clean = preg_replace('/[^\P{C}\n\t]/u', '', $clean) ?? '';
+
+        return $clean === '' ? null : $clean;
     }
 }
