@@ -7,8 +7,10 @@ use App\Enums\AccuracyLevelEnum;
 use App\Enums\AddressTypeEnum;
 use App\Models\Concerns\GeoScopes;
 use App\Observers\AddressObserver;
+use App\Support\TextNormalizer;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Casts\Attribute;
 
 class Address extends Model
 {
@@ -69,6 +71,93 @@ class Address extends Model
     protected static function booted(): void
     {
         static::observe(AddressObserver::class);
+    }
+
+    protected function formattedAddress(): Attribute
+    {
+        return $this->normalizedStringAttribute();
+    }
+
+    protected function shortAddressLine(): Attribute
+    {
+        return $this->normalizedStringAttribute();
+    }
+
+    protected function streetName(): Attribute
+    {
+        return $this->normalizedStringAttribute();
+    }
+
+    protected function streetNumber(): Attribute
+    {
+        return $this->normalizedStringAttribute();
+    }
+
+    protected function city(): Attribute
+    {
+        return $this->normalizedStringAttribute();
+    }
+
+    protected function state(): Attribute
+    {
+        return $this->normalizedStringAttribute();
+    }
+
+    protected function postalCode(): Attribute
+    {
+        return $this->normalizedStringAttribute();
+    }
+
+    protected function country(): Attribute
+    {
+        return $this->normalizedStringAttribute();
+    }
+
+    protected function countryCode(): Attribute
+    {
+        return $this->normalizedStringAttribute();
+    }
+
+    protected function description(): Attribute
+    {
+        return $this->normalizedStringAttribute();
+    }
+
+    protected function overrideReason(): Attribute
+    {
+        return $this->normalizedStringAttribute();
+    }
+
+    protected function provider(): Attribute
+    {
+        return $this->normalizedStringAttribute();
+    }
+
+    protected function providerPlaceId(): Attribute
+    {
+        return $this->normalizedStringAttribute();
+    }
+
+    protected function osmType(): Attribute
+    {
+        return $this->normalizedStringAttribute();
+    }
+
+    private function normalizedStringAttribute(): Attribute
+    {
+        return Attribute::make(
+            set: static function ($value) {
+                if ($value === null) {
+                    return null;
+                }
+
+                if (! is_string($value)) {
+                    $value = (string) $value;
+                }
+
+                return TextNormalizer::toNfc($value);
+            },
+        );
     }
 
     public function places()
