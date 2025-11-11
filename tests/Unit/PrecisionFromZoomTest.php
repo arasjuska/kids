@@ -1,6 +1,7 @@
 <?php
 
 use App\Services\MapClusterService;
+use App\Support\PrecisionFromZoom;
 use Illuminate\Support\Facades\Config;
 use Tests\TestCase;
 
@@ -24,6 +25,8 @@ beforeEach(function (): void {
 
     Config::set('map_clusters.precision_min', 0.005);
     Config::set('map_clusters.precision_max', 2.0);
+
+    PrecisionFromZoom::refresh();
 });
 
 function precisionService(): MapClusterService
@@ -44,6 +47,8 @@ it('falls back to nearest lower defined zoom when missing', function (): void {
     $map = Config::get('map_clusters.precision_by_zoom');
     unset($map[9]);
     Config::set('map_clusters.precision_by_zoom', $map);
+
+    PrecisionFromZoom::refresh();
 
     expect(precisionService()->precisionFromZoom(9))->toBe(0.08);
 });
@@ -66,6 +71,8 @@ it('is non-increasing as zoom grows', function (): void {
 it('clamps to configured bounds', function (): void {
     Config::set('map_clusters.precision_min', 0.01);
     Config::set('map_clusters.precision_max', 0.5);
+
+    PrecisionFromZoom::refresh();
 
     $service = precisionService();
 

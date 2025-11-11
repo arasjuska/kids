@@ -56,7 +56,9 @@
 
 @once
     @push('scripts')
-        @vite(['resources/js/leaflet.entry.js'])
+        @notTesting
+            @vite(['resources/js/leaflet.entry.js'])
+        @endnotTesting
         <script>
             window.addressFieldMapComponent = function ({ statePath, height, initialLatitude, initialLongitude }) {
                 return {

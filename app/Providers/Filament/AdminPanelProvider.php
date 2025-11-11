@@ -23,6 +23,17 @@ use Illuminate\View\Middleware\ShareErrorsFromSession;
 
 class AdminPanelProvider extends PanelProvider
 {
+    public function boot(): void
+    {
+        if (app()->runningUnitTests()) {
+            return;
+        }
+
+        if (method_exists(parent::class, 'boot')) {
+            parent::boot();
+        }
+    }
+
     public function panel(Panel $panel): Panel
     {
         $panel = $panel

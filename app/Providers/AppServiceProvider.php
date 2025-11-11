@@ -5,6 +5,7 @@ namespace App\Providers;
 use App\Contracts\GeocodingServiceInterface;
 use App\Services\GeocodingService;
 use App\Support\AddressNormalizer;
+use Illuminate\Support\Facades\Blade;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\File;
 use Illuminate\Support\Facades\View;
@@ -26,6 +27,8 @@ class AppServiceProvider extends ServiceProvider
      */
     public function boot(): void
     {
+        Blade::if('notTesting', fn() => !app()->environment('testing'));
+
         if (app()->environment('local', 'development')) {
             DB::listen(function ($query) {
                 if ($query->time > 100) {
@@ -36,8 +39,9 @@ class AppServiceProvider extends ServiceProvider
 
         View::share(
             'shouldIncludeViteAssets',
-            ! app()->runningUnitTests() &&
-            (File::exists(public_path('build/manifest.json')) || File::exists(public_path('hot')))
+            !app()->runningUnitTests() &&
+                (File::exists(public_path('build/manifest.json')) ||
+                    File::exists(public_path('hot'))),
         );
     }
 }
