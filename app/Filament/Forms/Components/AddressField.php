@@ -5,6 +5,8 @@ declare(strict_types=1);
 namespace App\Filament\Forms\Components;
 
 use App\Enums\AddressStateEnum;
+use App\Contracts\GeocodingServiceInterface;
+use App\Enums\AddressTypeEnum;
 use App\Enums\InputModeEnum;
 use App\Rules\Utf8String;
 use App\Services\AddressFormStateManager;
@@ -40,6 +42,7 @@ class AddressField extends Field
     protected int $configuredMapHeight = 360;
 
     protected ?GeoNormalizer $normalizer = null;
+    protected ?GeocodingServiceInterface $geocoder = null;
 
     protected function setUp(): void
     {
@@ -518,6 +521,64 @@ class AddressField extends Field
         $this->applySnapshotFromManager();
     }
 
+    protected function confirmPin(): void
+    {
+        $state = $this->getState() ?? [];
+        $lat = data_get($state, 'pin.latitude');
+        $lng = data_get($state, 'pin.longitude');
+
+        if (! is_numeric($lat) || ! is_numeric($lng)) {
+            $this->resetControlToken('confirm_pin_token');
+
+            return;
+        }
+
+        $latitude = (float) $lat;
+        $longitude = (float) $lng;
+
+        try {
+            $reverse = $this->getGeocoder()->reverse($latitude, $longitude);
+        } catch (\Throwable $exception) {
+            Log::warning('AddressField: reverse lookup failed', [
+                'lat' => $latitude,
+                'lng' => $longitude,
+                'message' => $exception->getMessage(),
+            ]);
+            $reverse = null;
+        }
+
+        if ($reverse) {
+            $rawPayload = $reverse->meta['raw'] ?? $reverse->meta['raw_payload'] ?? [];
+
+            if (! is_array($rawPayload)) {
+                $rawPayload = [];
+            }
+
+            if (! isset($rawPayload['address']) && isset($reverse->meta['address'])) {
+                $rawPayload['address'] = $reverse->meta['address'];
+            }
+
+            $rawPayload = array_merge($rawPayload, [
+                'place_id' => $reverse->placeId,
+                'display_name' => $reverse->formattedAddress,
+                'lat' => $reverse->latitude,
+                'lon' => $reverse->longitude,
+            ]);
+
+            $mapped = $this->mapSuggestionPayload($rawPayload);
+            $mapped['latitude'] = $reverse->latitude;
+            $mapped['longitude'] = $reverse->longitude;
+
+            $hasNumber = filled($mapped['street_number'] ?? null);
+            $this->ingestPinResult($mapped, $hasNumber ? AddressTypeEnum::VERIFIED : AddressTypeEnum::LOW_CONFIDENCE);
+        } else {
+            $this->ingestPinFallback($latitude, $longitude);
+        }
+
+        $this->togglePinMode('search');
+        $this->resetControlToken('confirm_pin_token');
+    }
+
     /**
      * @param  array<string, mixed>  $payload
      * @return array<string, mixed>
@@ -606,6 +667,34 @@ class AddressField extends Field
         $this->applySnapshotFromManager();
     }
 
+    protected function ingestPinResult(array $mapped, AddressTypeEnum $addressType): void
+    {
+        $this->ingestMappedSuggestion($mapped);
+
+        $manager = $this->resolveManager();
+        $manager->forceAddressType($addressType);
+        $this->applySnapshotFromManager();
+    }
+
+    protected function ingestPinFallback(float $latitude, float $longitude): void
+    {
+        $formatted = sprintf('Koordinatės: %.6f, %.6f', $latitude, $longitude);
+
+        $manager = $this->resolveManager();
+        $manager->overwriteManualFields([
+            'formatted_address' => $formatted,
+            'street_name' => null,
+            'street_number' => null,
+            'city' => null,
+            'postal_code' => null,
+            'country_code' => null,
+        ]);
+        $manager->forceAddressType(AddressTypeEnum::VIRTUAL);
+        $manager->updateCoordinates($latitude, $longitude, false);
+
+        $this->applySnapshotFromManager();
+    }
+
     protected function getNormalizer(): GeoNormalizer
     {
         if (! $this->normalizer) {
@@ -613,6 +702,15 @@ class AddressField extends Field
         }
 
         return $this->normalizer;
+    }
+
+    protected function getGeocoder(): GeocodingServiceInterface
+    {
+        if (! $this->geocoder) {
+            $this->geocoder = app(GeocodingServiceInterface::class);
+        }
+
+        return $this->geocoder;
     }
 
     /**
