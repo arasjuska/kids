@@ -528,6 +528,41 @@ class AddressFormStateManager
         $this->autoSelectAlert = false;
     }
 
+    public function forceAddressType(AddressTypeEnum $type, ?float $confidence = null): void
+    {
+        $this->addressType = $type;
+
+        if ($confidence !== null) {
+            $this->confidenceScore = $confidence;
+        }
+    }
+
+    public function markConfirmed(): void
+    {
+        $this->currentState = AddressStateEnum::CONFIRMED;
+        $this->inputMode = InputModeEnum::MIXED;
+    }
+
+    /**
+     * Overwrite manual fields without marking them locked (used for pin fallback).
+     *
+     * @param  array<string, mixed>  $fields
+     */
+    public function overwriteManualFields(array $fields): void
+    {
+        foreach ($fields as $key => $value) {
+            if (! array_key_exists($key, $this->manualFields)) {
+                continue;
+            }
+
+            if (is_string($value)) {
+                $value = $this->sanitizeUtf8($value);
+            }
+
+            $this->manualFields[$key] = $value;
+        }
+    }
+
     /**
      * Rankinis laukų atnaujinimas pažymi lauką kaip „užrakintą“ nuo automatinio reverse geocode.
      */
@@ -734,12 +769,14 @@ class AddressFormStateManager
             ]);
         }
 
-        if ($this->currentState === AddressStateEnum::IDLE && ! $this->hasMeaningfulInput()) {
-            $errors[] = 'Prašome įvesti ir pasirinkti adresą.';
-        }
+        if ($this->addressType === AddressTypeEnum::UNVERIFIED) {
+            if ($this->currentState === AddressStateEnum::IDLE && ! $this->hasMeaningfulInput()) {
+                $errors[] = 'Prašome įvesti ir pasirinkti adresą.';
+            }
 
-        if ($this->currentState === AddressStateEnum::SUGGESTIONS) {
-            $errors[] = 'Pasirinkite adresą iš pasiūlymų arba pereikite į rankinį režimą.';
+            if ($this->currentState === AddressStateEnum::SUGGESTIONS) {
+                $errors[] = 'Pasirinkite adresą iš pasiūlymų arba pereikite į rankinį režimą.';
+            }
         }
 
         // Prefer coordinates from selected suggestion first, then raw payload

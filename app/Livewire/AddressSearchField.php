@@ -180,6 +180,37 @@ class AddressSearchField extends Component
         $this->lastExecutedQuery = '';
     }
 
+    /**
+     * Direct payload selection (bypasses lookup).
+     *
+     * @param  array<string, mixed>  $payload
+     */
+    public function selectSuggestion(array $payload): void
+    {
+        $placeId = (string) ($payload['place_id'] ?? ($payload['id'] ?? ''));
+
+        if ($placeId === '') {
+            $placeId = (string) Str::uuid();
+            $payload['place_id'] = $placeId;
+        }
+
+        if (app()->environment(['local', 'testing'])) {
+            Log::info('addr:search:select:payload', [
+                'place_id' => $placeId,
+                'token' => $this->searchToken,
+            ]);
+        }
+
+        $this->model['selected_place_id'] = $placeId;
+        $this->model['selected_suggestion'] = $payload;
+        $this->model['suggestions'] = [$payload];
+        $this->model['search_query'] = '';
+
+        $this->suggestions = [];
+        $this->query = '';
+        $this->lastExecutedQuery = '';
+    }
+
     public function render()
     {
         return view('livewire.address-search-field');

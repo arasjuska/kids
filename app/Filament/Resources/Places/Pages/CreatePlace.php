@@ -15,6 +15,7 @@ use Filament\Resources\Pages\CreateRecord;
 use Illuminate\Http\Exceptions\HttpResponseException;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Validator;
+use Illuminate\Validation\Rule;
 use Illuminate\Validation\ValidationException;
 
 class CreatePlace extends CreateRecord
@@ -313,21 +314,48 @@ class CreatePlace extends CreateRecord
      */
     private function validateAddressFields(array $snapshot): void
     {
-        $fields = [
-            'formatted_address',
-            'street_name',
-            'street_number',
-            'postal_code',
-            'city',
-            'country_code',
+        $type = data_get($snapshot, 'address_type');
+        $manual = data_get($snapshot, 'manual_fields', []);
+
+        $rules = [
+            'address_state.manual_fields.formatted_address' => ['nullable', new Utf8String()],
+            'address_state.manual_fields.street_name' => [
+                'nullable',
+                new Utf8String(),
+                Rule::requiredIf(fn () => in_array($type, ['verified', 'low_confidence'], true)),
+            ],
+            'address_state.manual_fields.street_number' => [
+                'nullable',
+                new Utf8String(),
+                Rule::requiredIf(fn () => $type === 'verified'),
+            ],
+            'address_state.manual_fields.postal_code' => ['nullable', new Utf8String()],
+            'address_state.manual_fields.city' => [
+                'nullable',
+                new Utf8String(),
+                Rule::requiredIf(fn () => in_array($type, ['verified', 'low_confidence'], true)),
+            ],
+            'address_state.manual_fields.country_code' => ['nullable', new Utf8String()],
+            'address_state.coordinates.latitude' => [
+                'nullable',
+                Rule::requiredIf(fn () => $type === 'virtual'),
+                'numeric',
+            ],
+            'address_state.coordinates.longitude' => [
+                'nullable',
+                Rule::requiredIf(fn () => $type === 'virtual'),
+                'numeric',
+            ],
         ];
 
-        $rules = [];
+        $messages = [
+            'address_state.manual_fields.city.required' => 'Miestas yra privalomas laukas.',
+            'address_state.manual_fields.street_name.required' => 'Nenurodytas gatvės pavadinimas.',
+            'address_state.manual_fields.street_number.required' => 'Nenurodytas namo numeris.',
+            'address_state.coordinates.latitude.required' => 'Koordinatės privalomos virtualiam adresui.',
+            'address_state.coordinates.longitude.required' => 'Koordinatės privalomos virtualiam adresui.',
+        ];
 
-        foreach ($fields as $field) {
-            $rules["address_state.manual_fields.{$field}"] = ['nullable', new Utf8String()];
-        }
-
-        Validator::make(['address_state' => $snapshot], $rules)->validate();
+        Validator::make(['address_state' => $snapshot], $rules, $messages)->validate();
     }
 }

@@ -54,6 +54,37 @@
 
 </div>
 
+<div
+    class="mt-3 flex flex-col gap-2 text-xs text-gray-600 dark:text-gray-300"
+    x-data="{ confirming: @entangle($statePath . '.ui.pin_confirming').live }"
+>
+    <p>Patraukite PIN ir spauskite „Patvirtinti PIN“.</p>
+    <div class="flex flex-wrap items-center gap-3">
+        <button
+            type="button"
+            class="inline-flex items-center gap-2 rounded-full bg-primary-600 px-4 py-2 text-sm font-semibold text-white shadow hover:bg-primary-500 focus:outline-none focus-visible:ring-2 focus-visible:ring-primary-500 disabled:cursor-not-allowed disabled:bg-primary-400"
+            :aria-busy="confirming.toString()"
+            :disabled="Boolean(confirming)"
+            wire:click="$set('{{ $statePath }}.control.confirm_pin_token', Date.now())"
+            wire:target="{{ $statePath }}.control.confirm_pin_token"
+            wire:loading.attr="aria-busy"
+        >
+            <svg
+                x-show="confirming"
+                class="h-4 w-4 animate-spin"
+                xmlns="http://www.w3.org/2000/svg"
+                fill="none"
+                viewBox="0 0 24 24"
+            >
+                <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v4a4 4 0 00-4 4H4z"></path>
+            </svg>
+            <span x-text="confirming ? 'Patvirtinama…' : 'Patvirtinti PIN'"></span>
+        </button>
+        <span class="text-gray-500 dark:text-gray-400">PIN gali būti redaguojamas bet kada – ankstesni duomenys nebus prarasti.</span>
+    </div>
+</div>
+
 @once
     @push('scripts')
         @notTesting
