@@ -1,6 +1,7 @@
 <?php
 
 use App\Console\Commands\GeocodeLookupCommand;
+use App\Console\Commands\MapWarmupCommand;
 use App\Http\Middleware\SanitizeUtf8;
 use Illuminate\Foundation\Application;
 use Illuminate\Foundation\Configuration\Exceptions;
@@ -15,6 +16,7 @@ return Application::configure(basePath: dirname(__DIR__))
     )
     ->withCommands([
         GeocodeLookupCommand::class,
+        MapWarmupCommand::class,
     ])
     ->withMiddleware(function (Middleware $middleware) {
         $middleware->append(SanitizeUtf8::class);

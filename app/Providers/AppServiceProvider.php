@@ -5,6 +5,7 @@ namespace App\Providers;
 use App\Contracts\GeocodingServiceInterface;
 use App\Services\GeocodingService;
 use App\Support\AddressNormalizer;
+use App\Support\PrecisionFromZoom;
 use Illuminate\Support\Facades\Blade;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\File;
@@ -43,5 +44,14 @@ class AppServiceProvider extends ServiceProvider
                 (File::exists(public_path('build/manifest.json')) ||
                     File::exists(public_path('hot'))),
         );
+
+        if (
+            !app()->runningUnitTests() &&
+            (app()->environment('production') || env('MAP_WARMUP', false))
+        ) {
+            foreach ([3, 6, 9, 12, 15] as $zoom) {
+                PrecisionFromZoom::meters($zoom);
+            }
+        }
     }
 }

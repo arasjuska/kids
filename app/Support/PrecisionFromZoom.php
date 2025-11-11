@@ -9,6 +9,8 @@ final class PrecisionFromZoom
     private static bool $booted = false;
     private static int $minZoom = 0;
     private static int $maxZoom = 0;
+    /** @var callable|null */
+    private static $meterObserver = null;
 
     public static function meters(int $zoom): float
     {
@@ -22,7 +24,13 @@ final class PrecisionFromZoom
             $zoom = self::$maxZoom;
         }
 
-        return self::$cache[$zoom];
+        $value = self::$cache[$zoom];
+
+        if (self::$meterObserver !== null) {
+            (self::$meterObserver)($zoom);
+        }
+
+        return $value;
     }
 
     public static function refresh(): void
@@ -86,5 +94,10 @@ final class PrecisionFromZoom
         }
 
         self::$booted = true;
+    }
+
+    public static function observeMeters(?callable $observer): void
+    {
+        self::$meterObserver = $observer;
     }
 }
