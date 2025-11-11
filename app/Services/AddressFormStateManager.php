@@ -538,6 +538,26 @@ class AddressFormStateManager
     }
 
     /**
+     * Overwrite manual fields without marking them locked (used for pin fallback).
+     *
+     * @param  array<string, mixed>  $fields
+     */
+    public function overwriteManualFields(array $fields): void
+    {
+        foreach ($fields as $key => $value) {
+            if (! array_key_exists($key, $this->manualFields)) {
+                continue;
+            }
+
+            if (is_string($value)) {
+                $value = $this->sanitizeUtf8($value);
+            }
+
+            $this->manualFields[$key] = $value;
+        }
+    }
+
+    /**
      * Rankinis laukų atnaujinimas pažymi lauką kaip „užrakintą“ nuo automatinio reverse geocode.
      */
     public function updateManualField(string $key, mixed $value): void

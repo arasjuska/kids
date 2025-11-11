@@ -11,6 +11,7 @@ use App\Enums\InputModeEnum;
 use App\Rules\Utf8String;
 use App\Services\AddressFormStateManager;
 use App\Support\GeoNormalizer;
+use App\Support\TextNormalizer;
 use Filament\Forms\Components\Field;
 use Filament\Forms\Components\Hidden;
 use Filament\Forms\Components\LivewireField;
@@ -494,7 +495,8 @@ class AddressField extends Field
         $manager = $this->resolveManager();
 
         try {
-            $manager->updateManualField($field, $value);
+            $normalized = $this->normalizeManualInput($field, $value);
+            $manager->updateManualField($field, $normalized);
             $manager->validateAndPrepareForSubmission();
         } catch (InvalidArgumentException $exception) {
             $manager->pushMessage('errors', $exception->getMessage());
@@ -509,6 +511,25 @@ class AddressField extends Field
         }
 
         $this->applySnapshotFromManager();
+    }
+
+    protected function normalizeManualInput(string $field, mixed $value): mixed
+    {
+        if ($value === null) {
+            return null;
+        }
+
+        if (is_string($value)) {
+            $normalized = TextNormalizer::toNfc($value);
+
+            if ($field === 'country_code') {
+                return $normalized !== null ? Str::lower($normalized) : null;
+            }
+
+            return $normalized;
+        }
+
+        return $value;
     }
 
     protected function handleCoordinatesSync(): void
