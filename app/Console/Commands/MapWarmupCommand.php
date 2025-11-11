@@ -32,7 +32,9 @@ class MapWarmupCommand extends Command
             $precisionMs,
         ));
 
-        $shouldTouchClusters = $this->option('force') || app()->environment('production');
+        $shouldTouchClusters = $this->option('force')
+            || app()->environment('production')
+            || (bool) config('map.warmup');
 
         if (! $shouldTouchClusters) {
             $this->comment('Skipping cluster warm-up (use --force to override outside production).');
