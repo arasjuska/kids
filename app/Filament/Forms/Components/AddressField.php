@@ -224,6 +224,29 @@ class AddressField extends Field
 
                     $this->handleUndoAutoSelect();
                 }),
+            Hidden::make('control.confirm_pin_token')
+                ->dehydrated(false)
+                ->live()
+                ->afterStateUpdated(function ($component, mixed $state): void {
+                    if ($state === null) {
+                        return;
+                    }
+
+                    $this->confirmPin();
+                }),
+            Hidden::make('ui.pin_confirming')
+                ->dehydrated(false)
+                ->reactive(),
+
+            ViewField::make('summary_line')
+                ->view('filament.forms.components.address-field.summary')
+                ->viewData(fn (Get $get): array => [
+                    'manual' => $get('manual_fields') ?? [],
+                    'coordinates' => $get('coordinates') ?? [],
+                    'addressType' => $get('address_type') ?? null,
+                ])
+                ->columnSpanFull()
+                ->dehydrated(false),
 
             Section::make()
                 ->schema([
@@ -368,6 +391,12 @@ class AddressField extends Field
                 ->visible(fn (Get $get): bool => in_array($get('input_mode'), [InputModeEnum::MANUAL->value, InputModeEnum::MIXED->value], true))
                 ->columnSpanFull(),
 
+            ViewField::make('manual_hint')
+                ->visible(fn (Get $get): bool => filled(data_get($get('manual_fields'), 'street_name')) || filled(data_get($get('manual_fields'), 'city')) || filled(data_get($get('manual_fields'), 'postal_code')) || filled(data_get($get('manual_fields'), 'street_number')))
+                ->view('filament.forms.components.address-field.manual-hint')
+                ->columnSpanFull()
+                ->dehydrated(false),
+
             // Map moved next to the search input above
         ];
     }
@@ -419,6 +448,10 @@ class AddressField extends Field
             'undo_autoselect_token' => null,
             'coordinates_sync_token' => $merged['control']['coordinates_sync_token'] ?? null,
         ]);
+
+        $merged['ui'] = array_replace([
+            'pin_confirming' => data_get($current, 'ui.pin_confirming', false),
+        ], $current['ui'] ?? []);
 
         $merged['live'] = array_replace($merged['live'] ?? [], [
             'search_query' => $snapshot['search_query'] ?? '',
@@ -557,38 +590,41 @@ class AddressField extends Field
         $latitude = (float) $lat;
         $longitude = (float) $lng;
 
+        $this->setUiFlag('pin_confirming', true);
+
         try {
-            $reverse = $this->getGeocoder()->reverse($latitude, $longitude);
-        } catch (\Throwable $exception) {
-            Log::warning('AddressField: reverse lookup failed', [
-                'lat' => $latitude,
-                'lng' => $longitude,
-                'message' => $exception->getMessage(),
-            ]);
-            $reverse = null;
-        }
+            try {
+                $reverse = $this->getGeocoder()->reverse($latitude, $longitude);
+            } catch (\Throwable $exception) {
+                Log::warning('AddressField: reverse lookup failed', [
+                    'lat' => $latitude,
+                    'lng' => $longitude,
+                    'message' => $exception->getMessage(),
+                ]);
+                $reverse = null;
+            }
 
         if ($reverse) {
             $rawPayload = $reverse->meta['raw'] ?? $reverse->meta['raw_payload'] ?? [];
 
-            if (! is_array($rawPayload)) {
-                $rawPayload = [];
-            }
+                if (! is_array($rawPayload)) {
+                    $rawPayload = [];
+                }
 
-            if (! isset($rawPayload['address']) && isset($reverse->meta['address'])) {
-                $rawPayload['address'] = $reverse->meta['address'];
-            }
+                if (! isset($rawPayload['address']) && isset($reverse->meta['address'])) {
+                    $rawPayload['address'] = $reverse->meta['address'];
+                }
 
-            $rawPayload = array_merge($rawPayload, [
-                'place_id' => $reverse->placeId,
-                'display_name' => $reverse->formattedAddress,
-                'lat' => $reverse->latitude,
-                'lon' => $reverse->longitude,
-            ]);
+                $rawPayload = array_merge($rawPayload, [
+                    'place_id' => $reverse->placeId,
+                    'display_name' => $reverse->formattedAddress,
+                    'lat' => $reverse->latitude,
+                    'lon' => $reverse->longitude,
+                ]);
 
-            $mapped = $this->mapSuggestionPayload($rawPayload);
-            $mapped['latitude'] = $reverse->latitude;
-            $mapped['longitude'] = $reverse->longitude;
+                $mapped = $this->mapSuggestionPayload($rawPayload);
+                $mapped['latitude'] = $reverse->latitude;
+                $mapped['longitude'] = $reverse->longitude;
 
             $hasNumber = filled($mapped['street_number'] ?? null);
             $this->ingestPinResult($mapped, $hasNumber ? AddressTypeEnum::VERIFIED : AddressTypeEnum::LOW_CONFIDENCE);
@@ -596,8 +632,13 @@ class AddressField extends Field
             $this->ingestPinFallback($latitude, $longitude);
         }
 
-        $this->togglePinMode('search');
-        $this->resetControlToken('confirm_pin_token');
+        $this->markSelectionMade();
+        } finally {
+            $this->setUiFlag('pin_confirming', false);
+
+            $this->togglePinMode('search');
+            $this->resetControlToken('confirm_pin_token');
+        }
     }
 
     /**
@@ -692,6 +733,7 @@ class AddressField extends Field
         }
 
         $this->applySnapshotFromManager();
+        $this->markSelectionMade();
     }
 
     protected function ingestPinResult(array $mapped, AddressTypeEnum $addressType): void
@@ -700,6 +742,7 @@ class AddressField extends Field
 
         $manager = $this->resolveManager();
         $manager->forceAddressType($addressType);
+        $manager->markConfirmed();
         $this->applySnapshotFromManager();
     }
 
@@ -718,6 +761,7 @@ class AddressField extends Field
         ]);
         $manager->forceAddressType(AddressTypeEnum::VIRTUAL);
         $manager->updateCoordinates($latitude, $longitude, false);
+        $manager->markConfirmed();
 
         $this->applySnapshotFromManager();
     }
@@ -738,6 +782,60 @@ class AddressField extends Field
         }
 
         return $this->geocoder;
+    }
+
+    protected function setUiFlag(string $flag, bool $value): void
+    {
+        $state = $this->getState() ?? [];
+        data_set($state, "ui.{$flag}", $value);
+
+        $this->isApplyingSnapshot = true;
+        $this->state($state, false);
+        $this->isApplyingSnapshot = false;
+    }
+
+    protected function markSelectionMade(): void
+    {
+        $state = $this->getState() ?? [];
+        data_set($state, 'has_selection', true);
+
+        $this->isApplyingSnapshot = true;
+        $this->state($state, false);
+        $this->isApplyingSnapshot = false;
+
+        $this->resetSelectionErrors();
+    }
+
+    protected function resetSelectionErrors(): void
+    {
+        if (! method_exists($this, 'getLivewire')) {
+            return;
+        }
+
+        $livewire = $this->getLivewire();
+
+        if (! $livewire || ! method_exists($livewire, 'resetErrorBag')) {
+            return;
+        }
+
+        $livewire->resetErrorBag([
+            'selected_suggestion',
+            'address.search',
+            'address.city',
+            'address.street_name',
+            'address.street_number',
+            'address.formatted_address',
+        ]);
+    }
+
+    protected function resetControlToken(string $token): void
+    {
+        $state = $this->getState() ?? [];
+        data_set($state, "control.{$token}", null);
+
+        $this->isApplyingSnapshot = true;
+        $this->state($state, false);
+        $this->isApplyingSnapshot = false;
     }
 
     /**

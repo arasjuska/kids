@@ -537,6 +537,12 @@ class AddressFormStateManager
         }
     }
 
+    public function markConfirmed(): void
+    {
+        $this->currentState = AddressStateEnum::CONFIRMED;
+        $this->inputMode = InputModeEnum::MIXED;
+    }
+
     /**
      * Overwrite manual fields without marking them locked (used for pin fallback).
      *
@@ -763,12 +769,14 @@ class AddressFormStateManager
             ]);
         }
 
-        if ($this->currentState === AddressStateEnum::IDLE && ! $this->hasMeaningfulInput()) {
-            $errors[] = 'Prašome įvesti ir pasirinkti adresą.';
-        }
+        if ($this->addressType === AddressTypeEnum::UNVERIFIED) {
+            if ($this->currentState === AddressStateEnum::IDLE && ! $this->hasMeaningfulInput()) {
+                $errors[] = 'Prašome įvesti ir pasirinkti adresą.';
+            }
 
-        if ($this->currentState === AddressStateEnum::SUGGESTIONS) {
-            $errors[] = 'Pasirinkite adresą iš pasiūlymų arba pereikite į rankinį režimą.';
+            if ($this->currentState === AddressStateEnum::SUGGESTIONS) {
+                $errors[] = 'Pasirinkite adresą iš pasiūlymų arba pereikite į rankinį režimą.';
+            }
         }
 
         // Prefer coordinates from selected suggestion first, then raw payload
