@@ -664,6 +664,12 @@ class AddressField extends Field
         $manager->handleSearchResults(collect([$mapped]));
         $manager->selectSuggestion($placeId);
 
+        $hasStreet = filled($mapped['street_name'] ?? null);
+        $hasNumber = filled($mapped['street_number'] ?? null);
+        if ($hasStreet && ! $hasNumber) {
+            $manager->forceAddressType(AddressTypeEnum::LOW_CONFIDENCE);
+        }
+
         $this->applySnapshotFromManager();
     }
 

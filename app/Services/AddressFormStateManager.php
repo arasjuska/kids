@@ -528,6 +528,15 @@ class AddressFormStateManager
         $this->autoSelectAlert = false;
     }
 
+    public function forceAddressType(AddressTypeEnum $type, ?float $confidence = null): void
+    {
+        $this->addressType = $type;
+
+        if ($confidence !== null) {
+            $this->confidenceScore = $confidence;
+        }
+    }
+
     /**
      * Rankinis laukų atnaujinimas pažymi lauką kaip „užrakintą“ nuo automatinio reverse geocode.
      */
