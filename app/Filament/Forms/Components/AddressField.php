@@ -8,6 +8,7 @@ use App\Enums\AddressStateEnum;
 use App\Enums\InputModeEnum;
 use App\Rules\Utf8String;
 use App\Services\AddressFormStateManager;
+use App\Support\GeoNormalizer;
 use Filament\Forms\Components\Field;
 use Filament\Forms\Components\Hidden;
 use Filament\Forms\Components\LivewireField;
@@ -18,6 +19,7 @@ use Filament\Schemas\Components\Section;
 use Filament\Schemas\Components\Utilities\Get;
 use Illuminate\Support\Arr;
 use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Str;
 use InvalidArgumentException;
 
 /**
@@ -36,6 +38,8 @@ class AddressField extends Field
     protected ?string $configuredCountryCode = null;
 
     protected int $configuredMapHeight = 360;
+
+    protected ?GeoNormalizer $normalizer = null;
 
     protected function setUp(): void
     {
@@ -135,10 +139,7 @@ class AddressField extends Field
                         return;
                     }
 
-                    $manager = $this->resolveManager();
-                    $manager->handleSearchResults(collect([$state]));
-                    $manager->selectSuggestion((string) $state['place_id']);
-                    $this->applySnapshotFromManager();
+                    $this->selectSuggestion($state);
                 }),
 
             // Selected place id coming from Livewire search
@@ -188,10 +189,7 @@ class AddressField extends Field
                         return;
                     }
 
-                    $manager = $this->resolveManager();
-                    $manager->handleSearchResults(collect([$state]));
-                    $manager->selectSuggestion((string) $state['place_id']);
-                    $this->applySnapshotFromManager();
+                    $this->selectSuggestion($state);
                 }),
 
             Hidden::make('control.coordinates_sync_token')
@@ -454,6 +452,22 @@ class AddressField extends Field
         $this->state($partial, false);
     }
 
+    protected function selectSuggestion(string|int|array|null $selection): void
+    {
+        if (is_array($selection)) {
+            $mapped = $this->mapSuggestionPayload($selection);
+            $this->ingestMappedSuggestion($mapped);
+
+            return;
+        }
+
+        if ($selection === null || $selection === '') {
+            return;
+        }
+
+        $this->handleSuggestionSelection((string) $selection);
+    }
+
     protected function handleSuggestionSelection(string|int $placeId): void
     {
         $this->resolveManager()->selectSuggestion($placeId);
@@ -502,6 +516,103 @@ class AddressField extends Field
 
         $this->resolveManager()->updateCoordinates($latitude, $longitude, true);
         $this->applySnapshotFromManager();
+    }
+
+    /**
+     * @param  array<string, mixed>  $payload
+     * @return array<string, mixed>
+     */
+    protected function mapSuggestionPayload(array $payload): array
+    {
+        $raw = $payload['raw_payload'] ?? $payload['raw'] ?? null;
+        if (! is_array($raw)) {
+            $raw = [];
+        }
+
+        if (! isset($raw['address']) && isset($payload['address']) && is_array($payload['address'])) {
+            $raw['address'] = $payload['address'];
+        }
+
+        $placeId = (string) ($payload['place_id'] ?? ($raw['place_id'] ?? Str::uuid()->toString()));
+        $displayName = $payload['display_name'] ?? $payload['formatted_address'] ?? ($raw['display_name'] ?? '');
+
+        $raw = array_merge($raw, [
+            'place_id' => $placeId,
+            'display_name' => $displayName,
+            'lat' => $payload['latitude'] ?? $payload['lat'] ?? ($raw['lat'] ?? null),
+            'lon' => $payload['longitude'] ?? $payload['lon'] ?? ($raw['lon'] ?? null),
+        ]);
+
+        $mapped = $this->getNormalizer()->mapProviderSuggestion($raw);
+
+        $mapped['place_id'] = $placeId;
+        $mapped['formatted_address'] = $payload['formatted_address']
+            ?? ($mapped['formatted_address'] ?? $mapped['short_address_line'] ?? $displayName);
+
+        if (isset($payload['city'])) {
+            $mapped['city'] = $payload['city'];
+        }
+
+        if (isset($payload['street_name'])) {
+            $mapped['street_name'] = $payload['street_name'];
+        }
+
+        if (isset($payload['street_number'])) {
+            $mapped['street_number'] = $payload['street_number'];
+        }
+
+        if (isset($payload['postal_code'])) {
+            $mapped['postal_code'] = $payload['postal_code'];
+        }
+
+        if (isset($payload['country_code'])) {
+            $mapped['country_code'] = Str::lower((string) $payload['country_code']);
+        }
+
+        $mapped['latitude'] = isset($payload['latitude']) && is_numeric($payload['latitude'])
+            ? (float) $payload['latitude']
+            : ($mapped['latitude'] ?? null);
+        $mapped['longitude'] = isset($payload['longitude']) && is_numeric($payload['longitude'])
+            ? (float) $payload['longitude']
+            : ($mapped['longitude'] ?? null);
+
+        if (isset($mapped['country_code'])) {
+            $mapped['country_code'] = Str::lower((string) $mapped['country_code']);
+        }
+
+        if (! isset($mapped['street_name']) && isset($mapped['street'])) {
+            $mapped['street_name'] = $mapped['street'];
+        }
+
+        if (! isset($mapped['street_number']) && isset($mapped['house_number'])) {
+            $mapped['street_number'] = $mapped['house_number'];
+        }
+
+        return $mapped;
+    }
+
+    /**
+     * @param  array<string, mixed>  $mapped
+     */
+    protected function ingestMappedSuggestion(array $mapped): void
+    {
+        $placeId = (string) ($mapped['place_id'] ?? Str::uuid()->toString());
+        $mapped['place_id'] = $placeId;
+
+        $manager = $this->resolveManager();
+        $manager->handleSearchResults(collect([$mapped]));
+        $manager->selectSuggestion($placeId);
+
+        $this->applySnapshotFromManager();
+    }
+
+    protected function getNormalizer(): GeoNormalizer
+    {
+        if (! $this->normalizer) {
+            $this->normalizer = app(GeoNormalizer::class);
+        }
+
+        return $this->normalizer;
     }
 
     /**
