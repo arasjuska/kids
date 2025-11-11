@@ -1,16 +1,6 @@
 <?php
 
-return [
-    /*
-    |--------------------------------------------------------------------------
-    | Zoom → Precision table
-    |--------------------------------------------------------------------------
-    |
-    | Precision is expressed in decimal degrees and controls the grid size
-    | used when aggregating low-zoom clusters.
-    |
-    */
-'precision_by_zoom' => [
+$precisionByZoom = [
     1 => 1.00,
     2 => 1.00,
     3 => 0.75,
@@ -23,19 +13,38 @@ return [
     10 => 0.025,
     11 => 0.015,
     12 => 0.010,
-],
+];
 
-'precision_min' => 0.005,
+return [
+    /*
+    |--------------------------------------------------------------------------
+    | Zoom → Precision table
+    |--------------------------------------------------------------------------
+    |
+    | Precision is expressed in decimal degrees and controls the grid size
+    | used when aggregating low-zoom clusters.
+    |
+    */
+    'precision_by_zoom' => $precisionByZoom,
+    'zoom_precision' => $precisionByZoom,
 
-'precision_max' => 2.000,
+    'zoom_min' => 1,
 
-'markers_zoom_threshold' => 12,
+    'zoom_max' => 18,
 
-'markers_per_page' => 1000,
+    'precision_default' => 0.50,
 
-'max_cluster_items' => 3000,
+    'precision_min' => 0.005,
 
-'cache_ttl_seconds' => 60,
+    'precision_max' => 2.000,
 
-'marker_bounds_decimals' => 4,
+    'markers_zoom_threshold' => 12,
+
+    'markers_per_page' => 1000,
+
+    'max_cluster_items' => 3000,
+
+    'cache_ttl_seconds' => 60,
+
+    'marker_bounds_decimals' => 4,
 ];

@@ -3,6 +3,7 @@
 namespace App\Services;
 
 use App\Models\Address;
+use App\Support\PrecisionFromZoom;
 use Illuminate\Contracts\Cache\Repository as CacheRepository;
 use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Support\Facades\Log;
@@ -190,33 +191,12 @@ class MapClusterService
      */
     public function precisionFromZoom(int $zoom): float
     {
-        $table = $this->normalizedPrecisionTable();
-        $min = (float) config('map_clusters.precision_min', 0.005);
-        $max = (float) config('map_clusters.precision_max', 2.0);
-
-        $clampedZoom = max(1, min(18, $zoom));
-
-        if (array_key_exists($clampedZoom, $table)) {
-            return $this->clampPrecision((float) $table[$clampedZoom], $min, $max);
-        }
-
-        for ($probe = $clampedZoom - 1; $probe >= 1; $probe--) {
-            if (array_key_exists($probe, $table)) {
-                return $this->clampPrecision((float) $table[$probe], $min, $max);
-            }
-        }
-
-        return $this->clampPrecision(0.50, $min, $max);
+        return PrecisionFromZoom::meters($zoom);
     }
 
     public function invokePrecision(int $zoom): float
     {
         return $this->precisionFromZoom($zoom);
-    }
-
-    protected function clampPrecision(float $precision, float $min, float $max): float
-    {
-        return max($min, min($max, $precision));
     }
 
     protected function normalizedPrecisionTable(): array
