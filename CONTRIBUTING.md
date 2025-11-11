@@ -10,5 +10,6 @@ Thanks for helping improve the project! Please review the existing coding standa
 
 ## Map warm-up
 
-- Production boots (and any environment with `MAP_WARMUP=true`) preheat `PrecisionFromZoom` for common zooms; set the env var locally if you want the same behaviour without enabling production mode.
-- Use `php artisan map:warmup --zooms=3,6,9,12,15 --bbox=25.20,54.60,25.40,54.80` to manually prime caches; add `--force` to hit the `MapClusterService` query outside production.
+- The toggle lives in `config('map.warmup')`, sourced from `MAP_WARMUP` during bootstrap. If you change the `.env`, remember to `php artisan config:clear` (or restart Sail) so the cached config picks it up.
+- Production boots (and any environment with `config('map.warmup') === true`) preheat `PrecisionFromZoom` for common zooms. Set `MAP_WARMUP=true` locally when you want that behaviour outside prod.
+- Use `php artisan map:warmup --zooms=3,6,9,12,15 --bbox=25.20,54.60,25.40,54.80` to manually prime caches; add `--force` to hit the `MapClusterService` query even when the config/env wouldn’t.

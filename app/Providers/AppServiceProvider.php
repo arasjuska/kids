@@ -47,7 +47,7 @@ class AppServiceProvider extends ServiceProvider
 
         if (
             !app()->runningUnitTests() &&
-            (app()->environment('production') || env('MAP_WARMUP', false))
+            (app()->environment('production') || config('map.warmup'))
         ) {
             foreach ([3, 6, 9, 12, 15] as $zoom) {
                 PrecisionFromZoom::meters($zoom);

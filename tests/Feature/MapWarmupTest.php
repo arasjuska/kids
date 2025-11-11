@@ -5,10 +5,12 @@ declare(strict_types=1);
 use App\Providers\AppServiceProvider;
 use App\Services\MapClusterService;
 use App\Support\PrecisionFromZoom;
+use Illuminate\Support\Facades\Config;
 use function Pest\Laravel\artisan;
 
 afterEach(function (): void {
     PrecisionFromZoom::observeMeters(null);
+    Config::set('map.warmup', false);
     \Mockery::close();
 });
 
@@ -18,15 +20,10 @@ it('skips automatic warm-up during tests', function (): void {
         $calls[] = $zoom;
     });
 
-    putenv('MAP_WARMUP=true');
-    $_ENV['MAP_WARMUP'] = 'true';
-    $_SERVER['MAP_WARMUP'] = 'true';
+    Config::set('map.warmup', true);
 
     $provider = new AppServiceProvider(app());
     $provider->boot();
-
-    putenv('MAP_WARMUP');
-    unset($_ENV['MAP_WARMUP'], $_SERVER['MAP_WARMUP']);
 
     expect($calls)->toBeEmpty();
 });
