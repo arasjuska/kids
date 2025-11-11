@@ -9,6 +9,7 @@ use App\Enums\AddressStateEnum;
 use App\Enums\AddressTypeEnum;
 use App\Enums\InputModeEnum;
 use App\Support\SourceLock;
+use App\Support\TextNormalizer;
 use Illuminate\Support\Arr;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\Log;
@@ -1139,15 +1140,6 @@ class AddressFormStateManager
 
     private function sanitizeUtf8(?string $value): ?string
     {
-        if ($value === null) {
-            return null;
-        }
-
-        $clean = @iconv('UTF-8', 'UTF-8//IGNORE', $value);
-        if ($clean === false) {
-            return null;
-        }
-
-        return preg_replace('/[^\P{C}\n\t]/u', '', $clean) ?? '';
+        return TextNormalizer::toNfc($value);
     }
 }

@@ -5,9 +5,11 @@ declare(strict_types=1);
 namespace App\Filament\Resources\Places\Pages;
 
 use App\Filament\Resources\Places\PlaceResource;
+use App\Http\Requests\AddressRequest;
+use App\Http\Requests\PlaceRequest;
 use App\Models\Address; // Importuojame AddressFormStateManager
-use App\Services\AddressFormStateManager;
 use App\Rules\Utf8String;
+use App\Services\AddressFormStateManager;
 use Filament\Notifications\Notification;
 use Filament\Resources\Pages\CreateRecord;
 use Illuminate\Http\Exceptions\HttpResponseException;
@@ -104,7 +106,7 @@ class CreatePlace extends CreateRecord
             ]);
         }
 
-        $addressData = $validationResult['data'];
+        $addressData = AddressRequest::normalizePayload($validationResult['data']);
 
         // Final safety: compute precise lat/lng from multiple sources (prefer LIVE selection)
         $raw = $addressSnapshot['raw_api_payload'] ?? [];
@@ -285,7 +287,7 @@ class CreatePlace extends CreateRecord
 
         $data['address_id'] = $addressRecord->id;
 
-        return $data;
+        return PlaceRequest::normalizePayload($data);
     }
 
     protected function afterCreate(): void
