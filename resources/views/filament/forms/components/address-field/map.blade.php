@@ -16,6 +16,8 @@
     x-on:address-field::select.window="handleExternalSelection($event.detail)"
     wire:ignore
     class="fi-fo-address-map relative z-0"
+    x-show="Boolean(state?.ui?.editing ?? true)"
+    x-cloak
 >
     <div
         x-ref="map"
@@ -54,13 +56,23 @@
 
 </div>
 
+@php $editingWireModel = $statePath.'.ui.editing'; @endphp
 <div
     class="mt-3 flex flex-col gap-2 text-xs text-gray-600 dark:text-gray-300"
-    x-data="addressFieldMapConfirmButton({
-        statePath: '{{ $statePath }}',
-    })"
+    x-data="(() => {
+        const editingBinding = @entangle($editingWireModel).live;
+        return {
+            editingBinding,
+            get editing() {
+                return this.editingBinding ?? true;
+            },
+            ...addressFieldMapConfirmButton({ statePath: '{{ $statePath }}' }),
+        };
+    })()"
+    x-show="Boolean(editing)"
+    x-cloak
 >
-    <p>Patraukite PIN ir spauskite „Patvirtinti PIN".</p>
+    <p>Perkelkite PIN arba pasirinkite vietą paieškoje ir spauskite „Patvirtinti vietą“.</p>
     <div class="flex flex-wrap items-center gap-3">
         <button
             type="button"
@@ -79,7 +91,7 @@
                 <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
                 <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v4a4 4 0 00-4 4H4z"></path>
             </svg>
-            <span x-text="confirming ? 'Patvirtinama…' : 'Patvirtinti PIN'"></span>
+            <span x-text="confirming ? 'Patvirtinama…' : 'Patvirtinti vietą'"></span>
         </button>
         <span class="text-gray-500 dark:text-gray-400">PIN gali būti redaguojamas bet kada – ankstesni duomenys nebus prarasti.</span>
     </div>
@@ -317,6 +329,16 @@
 
                             this.updateMarkerPosition(lat, lng, { pan: true });
                         });
+
+                        this.$watch('state.ui', (value) => {
+                            if (! value) {
+                                return;
+                            }
+
+                            if (value.editing && this.map) {
+                                window.requestAnimationFrame(() => this.map.invalidateSize());
+                            }
+                        });
                     },
 
                     focusMarker(detail) {
@@ -391,10 +413,13 @@
                             this.focusMarker({ lat: latRounded, lng: lngRounded });
                         }
 
-                        this.$wire.set(this.statePath + '.current_state', 'confirmed');
+                        this.$wire.set(this.statePath + '.current_state', 'suggestions');
                         if (this.state) {
-                            this.state.current_state = 'confirmed';
+                            this.state.current_state = 'suggestions';
                         }
+                        this.$wire.set(`${this.statePath}.ui.editing`, true);
+                        this.state.ui ??= {};
+                        this.state.ui.editing = true;
                         // Clear validation errors once selection is done
                         this.$wire.set(`${this.statePath}.messages.errors`, []);
                         if (this.state?.messages) {
@@ -449,6 +474,9 @@
 
                         this.state.control ??= {};
                         this.state.control.coordinates_sync_token = `${Date.now()}-${Math.random().toString(36).slice(2)}`;
+                        this.$wire.set(`${this.statePath}.ui.editing`, true);
+                        this.state.ui ??= {};
+                        this.state.ui.editing = true;
                     },
 
                     updateMarkerPosition(lat, lng, { pan = false } = {}) {

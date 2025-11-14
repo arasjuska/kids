@@ -68,6 +68,7 @@ class EditPlace extends EditRecord
                 'control' => [],
                 'locked_fields' => [],
                 'source_field_locks' => [],
+                'snapshot_at' => optional($address->snapshotTimestamp())?->toIso8601String(),
             ];
         }
 
@@ -107,7 +108,7 @@ class EditPlace extends EditRecord
 
         if (!empty($validationResult['errors'])) {
             throw ValidationException::withMessages([
-                'address_state' => $validationResult['errors'],
+                'form' => $validationResult['errors'],
             ]);
         }
 

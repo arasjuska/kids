@@ -26,6 +26,7 @@ class PlaceForm
                 ->schema([
                     AddressField::make('address_state')
                         ->label('Adresas')
+                        ->rules(['nullable'])
                         ->stateManager($manager)
                         ->countryCode('lt')
                         ->mapHeight(360),

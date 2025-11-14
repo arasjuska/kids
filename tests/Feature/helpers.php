@@ -1,5 +1,6 @@
 <?php
 
+use App\Enums\InputModeEnum;
 use App\Services\AddressFormStateManager;
 
 if (! function_exists('manualAddressState')) {
@@ -22,7 +23,11 @@ if (! function_exists('manualAddressState')) {
         }
 
         $manager->validateAndPrepareForSubmission();
+        $manager->markConfirmed(InputModeEnum::MANUAL);
 
-        return $manager->getStateSnapshot();
+        $snapshot = $manager->getStateSnapshot();
+        data_set($snapshot, 'ui.editing', false);
+
+        return $snapshot;
     }
 }

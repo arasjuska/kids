@@ -9,9 +9,11 @@ use App\Enums\AddressStateEnum;
 use App\Enums\AddressTypeEnum;
 use App\Enums\InputModeEnum;
 use App\Support\SourceLock;
+use Carbon\CarbonInterface;
 use App\Support\TextNormalizer;
 use Illuminate\Support\Arr;
 use Illuminate\Support\Collection;
+use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Str;
 use InvalidArgumentException;
@@ -102,6 +104,8 @@ class AddressFormStateManager
     private array $rawApiPayload = [];
 
     private string $countryCode = 'lt';
+
+    private ?CarbonInterface $snapshotAt = null;
 
     public function __construct(private readonly GeocodingServiceInterface $geocodingService)
     {
@@ -480,8 +484,8 @@ class AddressFormStateManager
 
         $this->suggestions = collect();
         $this->searchQuery = '';
-        $this->currentState = AddressStateEnum::CONFIRMED;
-        $this->inputMode = InputModeEnum::MIXED;
+        $this->currentState = AddressStateEnum::SUGGESTIONS;
+        $this->inputMode = InputModeEnum::SEARCH;
 
         if (! $autoSelected) {
             $this->autoSelectSnapshot = null;
@@ -537,10 +541,18 @@ class AddressFormStateManager
         }
     }
 
-    public function markConfirmed(): void
+    public function beginEditing(): void
+    {
+        if ($this->currentState === AddressStateEnum::CONFIRMED) {
+            $this->currentState = AddressStateEnum::MANUAL;
+        }
+    }
+
+    public function markConfirmed(?InputModeEnum $mode = null): void
     {
         $this->currentState = AddressStateEnum::CONFIRMED;
-        $this->inputMode = InputModeEnum::MIXED;
+        $this->inputMode = $mode ?? $this->inputMode ?? InputModeEnum::MIXED;
+        $this->snapshotAt = Carbon::now();
     }
 
     /**
@@ -671,8 +683,8 @@ class AddressFormStateManager
         }
 
         $this->rawApiPayload = $this->filterRawPayload($result);
-        $this->currentState = AddressStateEnum::CONFIRMED;
-        $this->inputMode = InputModeEnum::MIXED;
+        $this->currentState = AddressStateEnum::MANUAL;
+        $this->inputMode = InputModeEnum::MANUAL;
     }
 
     /**
@@ -684,6 +696,7 @@ class AddressFormStateManager
             'current_state' => $this->currentState->value,
             'input_mode' => $this->inputMode->value,
             'address_type' => $this->addressType->value,
+            'snapshot_at' => $this->snapshotAt?->toIso8601String(),
             'search_query' => $this->searchQuery,
             'suggestions' => $this->suggestions->values()->all(),
             'selected_suggestion' => $this->selectedSuggestion,
@@ -726,6 +739,8 @@ class AddressFormStateManager
         $this->currentState = $restoredState ?? $this->currentState;
         $this->inputMode = InputModeEnum::tryFrom($state['input_mode'] ?? '') ?? $this->inputMode;
         $this->addressType = $restoredAddressType;
+        $snapshotAt = $state['snapshot_at'] ?? null;
+        $this->snapshotAt = $snapshotAt ? Carbon::make($snapshotAt) : $this->snapshotAt;
         $this->searchQuery = $state['search_query'] ?? $this->searchQuery;
         $this->suggestions = collect($state['suggestions'] ?? []);
         $this->selectedSuggestion = $state['selected_suggestion'] ?? $this->selectedSuggestion;
@@ -780,7 +795,7 @@ class AddressFormStateManager
     {
         $errors = [];
         $warnings = [];
-        $addressConfirmed = $this->addressType !== AddressTypeEnum::UNVERIFIED;
+        $addressConfirmed = $this->currentState === AddressStateEnum::CONFIRMED;
 
         if (app()->environment(['local', 'testing'])) {
             Log::info('addr:manager:validate:start', [
@@ -944,6 +959,7 @@ class AddressFormStateManager
             'osm_type' => $osmType,
             'osm_id' => $osmId,
             'address_signature' => $addressSignature,
+            'snapshot_at' => $this->snapshotAt?->toIso8601String(),
         ]);
 
         if (app()->environment(['local', 'testing'])) {
