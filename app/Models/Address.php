@@ -7,7 +7,9 @@ use App\Enums\AccuracyLevelEnum;
 use App\Enums\AddressTypeEnum;
 use App\Models\Concerns\GeoScopes;
 use App\Observers\AddressObserver;
+use App\Support\AddressData;
 use App\Support\TextNormalizer;
+use Carbon\CarbonInterface;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Casts\Attribute;
@@ -158,6 +160,21 @@ class Address extends Model
                 return TextNormalizer::toNfc($value);
             },
         );
+    }
+
+    public function snapshotTimestamp(): ?CarbonInterface
+    {
+        return $this->fields_refreshed_at ?? $this->verified_at;
+    }
+
+    public function toAddressData(): AddressData
+    {
+        return AddressData::fromModel($this);
+    }
+
+    public function isConfirmed(): bool
+    {
+        return $this->toAddressData()->isConfirmed();
     }
 
     public function places()

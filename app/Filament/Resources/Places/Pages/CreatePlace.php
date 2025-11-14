@@ -10,6 +10,7 @@ use App\Http\Requests\PlaceRequest;
 use App\Models\Address; // Importuojame AddressFormStateManager
 use App\Rules\Utf8String;
 use App\Services\AddressFormStateManager;
+use App\Support\AddressPayloadBuilder;
 use Filament\Notifications\Notification;
 use Filament\Resources\Pages\CreateRecord;
 use Illuminate\Http\Exceptions\HttpResponseException;
@@ -260,23 +261,7 @@ class CreatePlace extends CreateRecord
             ]);
         }
 
-        $addressPayload = [
-            'formatted_address' => $addressData['formatted_address'] ?? '',
-            'street_name' => $addressData['street_name'] ?? null,
-            'street_number' => $addressData['street_number'] ?? null,
-            'city' => $addressData['city'] ?? null,
-            'state' => $addressData['state'] ?? null,
-            'postal_code' => $addressData['postal_code'] ?? null,
-            'country' => $addressData['country'] ?? 'Lietuva',
-            'country_code' => strtoupper($addressData['country_code'] ?? 'LT'),
-            'latitude' => $addressData['latitude'] ?? 0,
-            'longitude' => $addressData['longitude'] ?? 0,
-            'address_type' => $addressData['address_type'] ?? 'unverified',
-            'confidence_score' => $addressData['confidence_score'] ?? 0,
-            'description' => $addressData['description'] ?? null,
-            'raw_api_response' => $addressData['raw_api_response'] ?? null,
-            'is_virtual' => ($addressData['address_type'] ?? null) === 'virtual',
-        ];
+        $addressPayload = AddressPayloadBuilder::fromNormalized($addressData);
 
         if ($addressRecord) {
             $addressRecord->fill($addressPayload);

@@ -8,6 +8,7 @@ use App\Enums\InputModeEnum;
 use App\Filament\Resources\Places\PlaceResource;
 use App\Http\Requests\AddressRequest;
 use App\Services\AddressFormStateManager;
+use App\Support\AddressPayloadBuilder;
 use Filament\Actions\DeleteAction;
 use Filament\Resources\Pages\EditRecord;
 use Illuminate\Database\Eloquent\Model;
@@ -144,34 +145,10 @@ class EditPlace extends EditRecord
 
     private function buildAddressPayload(array $addressData): array
     {
-        return [
-            'formatted_address' => $addressData['formatted_address'] ?? '',
-            'short_address_line' => $addressData['short_address_line'] ?? null,
-            'street_name' => $addressData['street_name'] ?? null,
-            'street_number' => $addressData['street_number'] ?? null,
-            'city' => $addressData['city'] ?? null,
-            'state' => $addressData['state'] ?? null,
-            'postal_code' => $addressData['postal_code'] ?? null,
-            'country' => $addressData['country'] ?? 'Lietuva',
-            'country_code' => strtoupper($addressData['country_code'] ?? 'LT'),
-            'latitude' => isset($addressData['latitude'])
-                ? round((float) $addressData['latitude'], 6)
-                : 0,
-            'longitude' => isset($addressData['longitude'])
-                ? round((float) $addressData['longitude'], 6)
-                : 0,
-            'address_type' => $addressData['address_type'] ?? 'unverified',
-            'confidence_score' => $addressData['confidence_score'] ?? null,
-            'description' => $addressData['description'] ?? null,
-            'raw_api_response' => $addressData['raw_api_response'] ?? null,
-            'is_virtual' => ($addressData['address_type'] ?? null) === 'virtual',
-            'provider' => $addressData['provider'] ?? 'nominatim',
-            'provider_place_id' => $addressData['provider_place_id'] ?? null,
-            'osm_type' => $addressData['osm_type'] ?? null,
-            'osm_id' => $addressData['osm_id'] ?? null,
-            'address_signature' => $addressData['address_signature'] ?? null,
-            'source_locked' => false,
-            'override_reason' => 'Address updated via map pin confirmation',
-        ];
+        $payload = AddressPayloadBuilder::fromNormalized($addressData);
+        $payload['source_locked'] = false;
+        $payload['override_reason'] = 'Address updated via map pin confirmation';
+
+        return $payload;
     }
 }
