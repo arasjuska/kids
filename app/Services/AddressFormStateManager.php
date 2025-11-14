@@ -704,9 +704,28 @@ class AddressFormStateManager
      */
     public function restoreState(array $state): void
     {
-        $this->currentState = AddressStateEnum::tryFrom($state['current_state'] ?? '') ?? $this->currentState;
+        Log::debug('[MANAGER] restoreState INPUT', [
+            'input_manual_fields' => $state['manual_fields'] ?? null,
+            'input_address_type' => $state['address_type'] ?? null,
+            'input_current_state' => $state['current_state'] ?? null,
+        ]);
+
+        if (config('app.debug')) {
+            Log::debug('AddressFormStateManager restoring state', [
+                'address_type' => $state['address_type'] ?? null,
+                'coordinates' => $state['coordinates'] ?? null,
+            ]);
+        }
+
+        $restoredAddressType = AddressTypeEnum::tryFrom($state['address_type'] ?? '') ?? $this->addressType;
+        $restoredState = AddressStateEnum::tryFrom($state['current_state'] ?? '') ?? null;
+        if ($restoredState === null && $restoredAddressType !== AddressTypeEnum::UNVERIFIED) {
+            $restoredState = AddressStateEnum::CONFIRMED;
+        }
+
+        $this->currentState = $restoredState ?? $this->currentState;
         $this->inputMode = InputModeEnum::tryFrom($state['input_mode'] ?? '') ?? $this->inputMode;
-        $this->addressType = AddressTypeEnum::tryFrom($state['address_type'] ?? '') ?? $this->addressType;
+        $this->addressType = $restoredAddressType;
         $this->searchQuery = $state['search_query'] ?? $this->searchQuery;
         $this->suggestions = collect($state['suggestions'] ?? []);
         $this->selectedSuggestion = $state['selected_suggestion'] ?? $this->selectedSuggestion;
@@ -744,6 +763,12 @@ class AddressFormStateManager
         $this->rawApiPayload = is_array($state['raw_api_payload'] ?? null)
             ? $state['raw_api_payload']
             : $this->rawApiPayload;
+
+        Log::debug('[MANAGER] restoreState RESULT', [
+            'stored_manual_fields' => $this->manualFields,
+            'stored_address_type' => $this->addressType->value,
+            'stored_current_state' => $this->currentState->value,
+        ]);
     }
 
     /**
@@ -755,6 +780,7 @@ class AddressFormStateManager
     {
         $errors = [];
         $warnings = [];
+        $addressConfirmed = $this->addressType !== AddressTypeEnum::UNVERIFIED;
 
         if (app()->environment(['local', 'testing'])) {
             Log::info('addr:manager:validate:start', [
@@ -769,7 +795,7 @@ class AddressFormStateManager
             ]);
         }
 
-        if ($this->addressType === AddressTypeEnum::UNVERIFIED) {
+        if (! $addressConfirmed) {
             if ($this->currentState === AddressStateEnum::IDLE && ! $this->hasMeaningfulInput()) {
                 $errors[] = 'Prašome įvesti ir pasirinkti adresą.';
             }
@@ -867,7 +893,11 @@ class AddressFormStateManager
         }
 
         if (empty($this->manualFields['city'])) {
-            $errors[] = 'Miestas yra privalomas laukas.';
+            if ($addressConfirmed) {
+                $warnings[] = 'Geokodavimo atsakymas negrąžino miesto – patikrinkite prieš išsaugant.';
+            } else {
+                $errors[] = 'Miestas yra privalomas laukas.';
+            }
         }
 
         if (empty($this->manualFields['street_name']) && empty($this->manualFields['formatted_address'])) {
@@ -922,6 +952,16 @@ class AddressFormStateManager
                 'warnings' => $warnings,
                 'address_type' => $this->addressType->value,
                 'confidence' => $this->confidenceScore,
+            ]);
+
+            Log::debug('addr:manager:validate:snapshot', [
+                'addressType' => $this->addressType->value,
+                'manual_fields' => $this->manualFields,
+                'coordinates' => $this->coordinates,
+            ]);
+
+            Log::info('AddressFormStateManager prepared data', [
+                'data' => $data,
             ]);
         }
 

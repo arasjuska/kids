@@ -56,18 +56,18 @@
 
 <div
     class="mt-3 flex flex-col gap-2 text-xs text-gray-600 dark:text-gray-300"
-    x-data="{ confirming: @entangle($statePath . '.ui.pin_confirming').live }"
+    x-data="addressFieldMapConfirmButton({
+        statePath: '{{ $statePath }}',
+    })"
 >
-    <p>Patraukite PIN ir spauskite „Patvirtinti PIN“.</p>
+    <p>Patraukite PIN ir spauskite „Patvirtinti PIN".</p>
     <div class="flex flex-wrap items-center gap-3">
         <button
             type="button"
             class="inline-flex items-center gap-2 rounded-full bg-primary-600 px-4 py-2 text-sm font-semibold text-white shadow hover:bg-primary-500 focus:outline-none focus-visible:ring-2 focus-visible:ring-primary-500 disabled:cursor-not-allowed disabled:bg-primary-400"
             :aria-busy="confirming.toString()"
             :disabled="Boolean(confirming)"
-            wire:click="$set('{{ $statePath }}.control.confirm_pin_token', Date.now())"
-            wire:target="{{ $statePath }}.control.confirm_pin_token"
-            wire:loading.attr="aria-busy"
+            @click="confirmPin()"
         >
             <svg
                 x-show="confirming"
@@ -91,6 +91,52 @@
             @vite(['resources/js/leaflet.entry.js'])
         @endnotTesting
         <script>
+            // NAUJAS: Atskiras komponentas confirm mygtukui
+            window.addressFieldMapConfirmButton = function ({ statePath }) {
+                return {
+                    statePath,
+                    confirming: false,
+
+                    async confirmPin() {
+                        if (this.confirming) {
+                            return;
+                        }
+                        console.log('[TIME] confirmPin START', Date.now());
+
+                        this.confirming = true;
+
+                        try {
+                            // Gauname koordinates iš map komponento
+                            const state = this.$wire.$get(this.statePath);
+                            const lat = Number(state?.coordinates?.latitude);
+                            const lng = Number(state?.coordinates?.longitude);
+
+                            console.log('Confirm pin button triggered', { lat, lng });
+
+                            if (!Number.isFinite(lat) || !Number.isFinite(lng)) {
+                                console.error('No valid coordinates to confirm');
+                                return;
+                            }
+
+                            // Paleidžiame confirmation token
+                            await this.$wire.set(
+                                `${this.statePath}.control.confirm_pin_token`,
+                                Date.now()
+                            );
+
+                            // Palaukiame kad backend apdorotų
+                            await new Promise(resolve => setTimeout(resolve, 500));
+
+                        } catch (error) {
+                            console.error('Error confirming pin:', error);
+                        } finally {
+                            console.log('[TIME] confirmPin END', Date.now());
+                            this.confirming = false;
+                        }
+                    }
+                };
+            };
+
             window.addressFieldMapComponent = function ({ statePath, height, initialLatitude, initialLongitude }) {
                 return {
                     statePath,
@@ -371,16 +417,38 @@
                             return;
                         }
 
-                        const latRounded = Math.round(parseFloat(lat) * 1e6) / 1e6;
-                        const lngRounded = Math.round(parseFloat(lng) * 1e6) / 1e6;
+                        console.log('commitCoordinates called', {
+                            lat,
+                            lng,
+                            oldLat: this.state?.coordinates?.latitude,
+                            oldLng: this.state?.coordinates?.longitude,
+                        });
+
+                        const parsedLat = this.parseNumber(lat);
+                        const parsedLng = this.parseNumber(lng);
+
+                        if (Number.isNaN(parsedLat) || Number.isNaN(parsedLng)) {
+                            console.warn('commitCoordinates: invalid values', { lat, lng });
+                            return;
+                        }
+
+                        const latRounded = this.roundToSix(parsedLat);
+                        const lngRounded = this.roundToSix(parsedLng);
+
+                        console.log('commitCoordinates -> updating state', { lat: latRounded, lng: lngRounded });
+
+                        this.$wire.set(`${this.statePath}.coordinates.latitude`, latRounded);
+                        this.$wire.set(`${this.statePath}.coordinates.longitude`, lngRounded);
 
                         this.state.coordinates = {
                             latitude: latRounded,
                             longitude: lngRounded,
                         };
 
+                        console.log('commitCoordinates: state updated', this.state.coordinates);
+
                         this.state.control ??= {};
-                        this.state.control.coordinates_sync_token = Date.now();
+                        this.state.control.coordinates_sync_token = `${Date.now()}-${Math.random().toString(36).slice(2)}`;
                     },
 
                     updateMarkerPosition(lat, lng, { pan = false } = {}) {

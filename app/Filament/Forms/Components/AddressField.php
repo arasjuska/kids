@@ -55,6 +55,13 @@ class AddressField extends Field
         $this->childComponents($this->makeFieldComponents());
 
         $this->afterStateHydrated(function (AddressField $component, $state): void {
+            if (config('app.debug')) {
+                Log::debug('AddressField hydrating', [
+                    'statePath' => $component->getStatePath(),
+                    'state' => $state,
+                ]);
+            }
+
             // Only restore and apply if we actually have state (i.e. editing)
             if (is_array($state) && ! empty(array_filter($state))) {
                 $manager = $component->resolveManager();
@@ -64,10 +71,27 @@ class AddressField extends Field
         });
 
         $this->dehydrateStateUsing(function (AddressField $component, $state): ?array {
+            Log::debug('[TIME] dehydrateStateUsing START', [
+                'time' => microtime(true),
+                'statePath' => $component->getStatePath(),
+                'has_manual_fields' => ! empty(data_get($state, 'manual_fields.city')),
+            ]);
+
             // Always dehydrate current state to avoid race conditions between selection and submit.
             $manager = $component->resolveManager();
 
-            if (is_array($state) && ! empty(array_filter($state))) {
+            if (is_array($state) && !empty(array_filter($state))) {
+                $currentState = $component->getState();
+                if (empty($state['address_type']) && ! empty(data_get($currentState, 'address_type'))) {
+                    $state['address_type'] = data_get($currentState, 'address_type');
+                }
+                if (empty($state['current_state']) && ! empty(data_get($currentState, 'current_state'))) {
+                    $state['current_state'] = data_get($currentState, 'current_state');
+                }
+                if (empty($state['confidence_score']) && data_get($currentState, 'confidence_score') !== null) {
+                    $state['confidence_score'] = data_get($currentState, 'confidence_score');
+                }
+
                 $manager->restoreState($state);
             }
 
@@ -92,9 +116,22 @@ class AddressField extends Field
                 ]);
             }
 
+            if (app()->environment(['local', 'testing'])) {
+                Log::info('addr:field:dehydrate:final', [
+                    'statePath' => $component->getStatePath(),
+                    'snapshot' => $snapshot,
+                ]);
+            }
+
+            if (config('app.debug')) {
+                Log::debug('AddressField: dehydrateStateUsing COMPLETE', [
+                    'statePath' => $component->getStatePath(),
+                    'snapshot_FULL' => $snapshot,
+                ]);
+            }
+
             return $snapshot;
         });
-
     }
 
     public function countryCode(?string $countryCode): static
@@ -139,7 +176,7 @@ class AddressField extends Field
                 ->dehydrated(false)
                 ->reactive()
                 ->afterStateUpdated(function ($component, mixed $state): void {
-                    if (! is_array($state) || empty($state['place_id'])) {
+                    if (!is_array($state) || empty($state['place_id'])) {
                         return;
                     }
 
@@ -163,11 +200,13 @@ class AddressField extends Field
                 ->dehydrated(false)
                 ->reactive()
                 ->afterStateUpdated(function ($component, mixed $state): void {
-                    if (! is_array($state)) {
+                    if (!is_array($state)) {
                         return;
                     }
                     // Update manager suggestions so selectSuggestion can resolve place_id
-                    \Log::debug('AddressField: live.suggestions updated', ['count' => count($state)]);
+                    \Log::debug('AddressField: live.suggestions updated', [
+                        'count' => count($state),
+                    ]);
                     $this->resolveManager()->handleSearchResults(collect($state));
                     $this->applySnapshotFromManager();
                 }),
@@ -180,7 +219,9 @@ class AddressField extends Field
                         return;
                     }
 
-                    \Log::debug('AddressField: live.selected_place_id updated', ['value' => $state]);
+                    \Log::debug('AddressField: live.selected_place_id updated', [
+                        'value' => $state,
+                    ]);
 
                     $this->handleSuggestionSelection((string) $state);
                 }),
@@ -189,7 +230,7 @@ class AddressField extends Field
                 ->dehydrated(false)
                 ->reactive()
                 ->afterStateUpdated(function ($component, mixed $state): void {
-                    if (! is_array($state) || empty($state['place_id'])) {
+                    if (!is_array($state) || empty($state['place_id'])) {
                         return;
                     }
 
@@ -226,25 +267,36 @@ class AddressField extends Field
                 }),
             Hidden::make('control.confirm_pin_token')
                 ->dehydrated(false)
-                ->live()
+                ->reactive()
                 ->afterStateUpdated(function ($component, mixed $state): void {
-                    if ($state === null) {
+                    if (blank($state)) {
                         return;
                     }
 
-                    $this->confirmPin();
+                    Log::info('addr:field:pin:token-updated', [
+                        'statePath' => $component->getStatePath(),
+                        'token' => $state,
+                    ]);
+
+                    try {
+                        $this->confirmPin();
+                    } finally {
+                        $control = (array) data_get($component->getState(), 'control', []);
+                        $control['confirm_pin_token'] = null;
+                        $component->state(['control' => $control]);
+                    }
                 }),
-            Hidden::make('ui.pin_confirming')
-                ->dehydrated(false)
-                ->reactive(),
+            Hidden::make('ui.pin_confirming')->dehydrated(false)->reactive(),
 
             ViewField::make('summary_line')
                 ->view('filament.forms.components.address-field.summary')
-                ->viewData(fn (Get $get): array => [
-                    'manual' => $get('manual_fields') ?? [],
-                    'coordinates' => $get('coordinates') ?? [],
-                    'addressType' => $get('address_type') ?? null,
-                ])
+                ->viewData(
+                    fn(Get $get): array => [
+                        'manual' => $get('manual_fields') ?? [],
+                        'coordinates' => $get('coordinates') ?? [],
+                        'addressType' => $get('address_type') ?? null,
+                    ],
+                )
                 ->columnSpanFull()
                 ->dehydrated(false),
 
@@ -253,17 +305,21 @@ class AddressField extends Field
                     LivewireField::make('live')
                         ->dehydrated(false)
                         ->component(\App\Livewire\AddressSearchField::class)
-                        ->data(fn () => [
-                            'countryCode' => $this->configuredCountryCode ?? 'lt',
-                        ]),
+                        ->data(
+                            fn() => [
+                                'countryCode' => $this->configuredCountryCode ?? 'lt',
+                            ],
+                        ),
 
                     ViewField::make('map')
                         ->view('filament.forms.components.address-field.map')
-                        ->viewData(fn (Get $get): array => [
-                            'coordinates' => $get('coordinates') ?? [],
-                            'statePath' => $this->getStatePath(),
-                            'height' => $this->configuredMapHeight,
-                        ])
+                        ->viewData(
+                            fn(Get $get): array => [
+                                'coordinates' => $get('coordinates') ?? [],
+                                'statePath' => $this->getStatePath(),
+                                'height' => $this->configuredMapHeight,
+                            ],
+                        )
                         ->dehydrated(false),
                 ])
                 ->columns([
@@ -276,19 +332,26 @@ class AddressField extends Field
             ViewField::make('debug_info')
                 ->dehydrated(false)
                 ->reactive()
-                ->visible(fn (): bool => (bool) config('app.debug'))
+                ->visible(fn(): bool => (bool) config('app.debug'))
                 ->view('filament.forms.components.address-field.debug')
-                ->viewData(fn (Get $get): array => [
-                    'currentState' => $get('current_state'),
-                    'inputMode' => $get('input_mode'),
-                    'query' => $get('search_query') ?? '',
-                    'suggestionsCount' => is_array($get('suggestions')) ? count($get('suggestions')) : 0,
-                ])
+                ->viewData(
+                    fn(Get $get): array => [
+                        'currentState' => $get('current_state'),
+                        'inputMode' => $get('input_mode'),
+                        'query' => $get('search_query') ?? '',
+                        'suggestionsCount' => is_array($get('suggestions'))
+                            ? count($get('suggestions'))
+                            : 0,
+                    ],
+                )
                 ->columnSpanFull(),
 
             ViewField::make('loading_indicator')
                 ->view('filament.forms.components.address-field.loading')
-                ->visible(fn (Get $get): bool => $get('current_state') === AddressStateEnum::SEARCHING->value)
+                ->visible(
+                    fn(Get $get): bool => $get('current_state') ===
+                        AddressStateEnum::SEARCHING->value,
+                )
                 ->dehydrated(false)
                 ->columnSpanFull(),
 
@@ -298,21 +361,28 @@ class AddressField extends Field
 
             ViewField::make('manual_switch_button')
                 ->view('filament.forms.components.address-field.manual-actions')
-                ->viewData(fn (Get $get): array => [
-                    'mode' => $get('input_mode'),
-                    'statePath' => $this->getStatePath(),
-                    'showUndo' => (bool) $get('auto_select_alert'),
-                ])
+                ->viewData(
+                    fn(Get $get): array => [
+                        'mode' => $get('input_mode'),
+                        'statePath' => $this->getStatePath(),
+                        'showUndo' => (bool) $get('auto_select_alert'),
+                    ],
+                )
                 ->dehydrated(false)
                 ->columnSpanFull(),
 
             Select::make('selected_place_id')
                 ->label('Galimi adresai')
-                ->options(fn (Get $get): array => $this->formatSuggestionOptions($get('suggestions')))
+                ->options(
+                    fn(Get $get): array => $this->formatSuggestionOptions($get('suggestions')),
+                )
                 ->dehydrated(false)
-                ->visible(fn (Get $get): bool => $get('current_state') === AddressStateEnum::SUGGESTIONS->value)
+                ->visible(
+                    fn(Get $get): bool => $get('current_state') ===
+                        AddressStateEnum::SUGGESTIONS->value,
+                )
                 ->afterStateUpdated(function ($component, ?string $state): void {
-                    if (! $state) {
+                    if (!$state) {
                         return;
                     }
 
@@ -324,20 +394,27 @@ class AddressField extends Field
 
             ViewField::make('undo_auto_select_notice')
                 ->view('filament.forms.components.address-field.undo-auto-select')
-                ->visible(fn (Get $get): bool => (bool) $get('auto_select_alert'))
-                ->viewData(fn (Get $get): array => [
-                    'statePath' => $this->getStatePath(),
-                ])
+                ->visible(fn(Get $get): bool => (bool) $get('auto_select_alert'))
+                ->viewData(
+                    fn(Get $get): array => [
+                        'statePath' => $this->getStatePath(),
+                    ],
+                )
                 ->dehydrated(false)
                 ->columnSpanFull(),
 
             ViewField::make('messages')
                 ->view('filament.forms.components.address-field.messages')
-                ->viewData(fn (Get $get): array => [
-                    'errors' => Arr::wrap(data_get($get('messages'), 'errors', [])),
-                    'warnings' => Arr::wrap(data_get($get('messages'), 'warnings', [])),
-                ])
-                ->visible(fn (Get $get): bool => filled(data_get($get('messages'), 'errors')) || filled(data_get($get('messages'), 'warnings')))
+                ->viewData(
+                    fn(Get $get): array => [
+                        'errors' => Arr::wrap(data_get($get('messages'), 'errors', [])),
+                        'warnings' => Arr::wrap(data_get($get('messages'), 'warnings', [])),
+                    ],
+                )
+                ->visible(
+                    fn(Get $get): bool => filled(data_get($get('messages'), 'errors')) ||
+                        filled(data_get($get('messages'), 'warnings')),
+                )
                 ->dehydrated(false)
                 ->reactive()
                 ->columnSpanFull(),
@@ -348,51 +425,111 @@ class AddressField extends Field
                         ->label('Pilnas adresas')
                         ->columnSpanFull()
                         ->rule(new Utf8String())
-                        ->afterStateUpdated(fn ($component, ?string $state) => $this->handleManualFieldUpdate('formatted_address', $state))
+                        ->afterStateUpdated(
+                            fn($component, ?string $state) => $this->handleManualFieldUpdate(
+                                'formatted_address',
+                                $state,
+                            ),
+                        )
                         ->live(onBlur: true),
                     TextInput::make('manual_fields.street_name')
                         ->label('Gatvė')
-                        ->disabled(fn (Get $get): bool => $this->isSourceFieldLocked($get, 'street_name'))
-                        ->hint(fn (Get $get): ?string => $this->getSourceLockHint($get, 'street_name'))
+                        ->disabled(
+                            fn(Get $get): bool => $this->isSourceFieldLocked($get, 'street_name'),
+                        )
+                        ->hint(
+                            fn(Get $get): ?string => $this->getSourceLockHint($get, 'street_name'),
+                        )
                         ->rule(new Utf8String())
-                        ->afterStateUpdated(fn ($component, ?string $state) => $this->handleManualFieldUpdate('street_name', $state))
+                        ->afterStateUpdated(
+                            fn($component, ?string $state) => $this->handleManualFieldUpdate(
+                                'street_name',
+                                $state,
+                            ),
+                        )
                         ->live(onBlur: true),
                     TextInput::make('manual_fields.street_number')
                         ->label('Namo Nr.')
-                        ->disabled(fn (Get $get): bool => $this->isSourceFieldLocked($get, 'street_number'))
-                        ->hint(fn (Get $get): ?string => $this->getSourceLockHint($get, 'street_number'))
+                        ->disabled(
+                            fn(Get $get): bool => $this->isSourceFieldLocked($get, 'street_number'),
+                        )
+                        ->hint(
+                            fn(Get $get): ?string => $this->getSourceLockHint(
+                                $get,
+                                'street_number',
+                            ),
+                        )
                         ->rule(new Utf8String())
-                        ->afterStateUpdated(fn ($component, ?string $state) => $this->handleManualFieldUpdate('street_number', $state))
+                        ->afterStateUpdated(
+                            fn($component, ?string $state) => $this->handleManualFieldUpdate(
+                                'street_number',
+                                $state,
+                            ),
+                        )
                         ->live(onBlur: true),
                     TextInput::make('manual_fields.postal_code')
                         ->label('Pašto kodas')
-                        ->disabled(fn (Get $get): bool => $this->isSourceFieldLocked($get, 'postal_code'))
-                        ->hint(fn (Get $get): ?string => $this->getSourceLockHint($get, 'postal_code'))
+                        ->disabled(
+                            fn(Get $get): bool => $this->isSourceFieldLocked($get, 'postal_code'),
+                        )
+                        ->hint(
+                            fn(Get $get): ?string => $this->getSourceLockHint($get, 'postal_code'),
+                        )
                         ->rule(new Utf8String())
-                        ->afterStateUpdated(fn ($component, ?string $state) => $this->handleManualFieldUpdate('postal_code', $state))
+                        ->afterStateUpdated(
+                            fn($component, ?string $state) => $this->handleManualFieldUpdate(
+                                'postal_code',
+                                $state,
+                            ),
+                        )
                         ->live(onBlur: true),
                     TextInput::make('manual_fields.city')
                         ->label('Miestas')
-                        ->disabled(fn (Get $get): bool => $this->isSourceFieldLocked($get, 'city'))
-                        ->hint(fn (Get $get): ?string => $this->getSourceLockHint($get, 'city'))
+                        ->disabled(fn(Get $get): bool => $this->isSourceFieldLocked($get, 'city'))
+                        ->hint(fn(Get $get): ?string => $this->getSourceLockHint($get, 'city'))
                         ->rule(new Utf8String())
-                        ->afterStateUpdated(fn ($component, ?string $state) => $this->handleManualFieldUpdate('city', $state))
+                        ->afterStateUpdated(
+                            fn($component, ?string $state) => $this->handleManualFieldUpdate(
+                                'city',
+                                $state,
+                            ),
+                        )
                         ->live(onBlur: true),
                     TextInput::make('manual_fields.country_code')
                         ->label('Šalies kodas')
                         ->maxLength(2)
-                        ->disabled(fn (Get $get): bool => $this->isSourceFieldLocked($get, 'country_code'))
-                        ->hint(fn (Get $get): ?string => $this->getSourceLockHint($get, 'country_code'))
+                        ->disabled(
+                            fn(Get $get): bool => $this->isSourceFieldLocked($get, 'country_code'),
+                        )
+                        ->hint(
+                            fn(Get $get): ?string => $this->getSourceLockHint($get, 'country_code'),
+                        )
                         ->rule(new Utf8String())
-                        ->afterStateUpdated(fn ($component, ?string $state) => $this->handleManualFieldUpdate('country_code', $state))
+                        ->afterStateUpdated(
+                            fn($component, ?string $state) => $this->handleManualFieldUpdate(
+                                'country_code',
+                                $state,
+                            ),
+                        )
                         ->live(onBlur: true),
                 ])
                 ->columns(2)
-                ->visible(fn (Get $get): bool => in_array($get('input_mode'), [InputModeEnum::MANUAL->value, InputModeEnum::MIXED->value], true))
+                ->visible(
+                    fn(Get $get): bool => in_array(
+                        $get('input_mode'),
+                        [InputModeEnum::MANUAL->value, InputModeEnum::MIXED->value],
+                        true,
+                    ),
+                )
                 ->columnSpanFull(),
 
             ViewField::make('manual_hint')
-                ->visible(fn (Get $get): bool => filled(data_get($get('manual_fields'), 'street_name')) || filled(data_get($get('manual_fields'), 'city')) || filled(data_get($get('manual_fields'), 'postal_code')) || filled(data_get($get('manual_fields'), 'street_number')))
+                ->visible(
+                    fn(Get $get): bool => filled(data_get($get('manual_fields'), 'street_name')) ||
+                        filled(data_get($get('manual_fields'), 'city')) ||
+                        filled(data_get($get('manual_fields'), 'postal_code')) ||
+                        filled(data_get($get('manual_fields'), 'street_number')),
+                )
                 ->view('filament.forms.components.address-field.manual-hint')
                 ->columnSpanFull()
                 ->dehydrated(false),
@@ -403,7 +540,7 @@ class AddressField extends Field
 
     protected function resolveManager(): AddressFormStateManager
     {
-        if (! $this->manager) {
+        if (!$this->manager) {
             $this->manager = app(AddressFormStateManager::class);
 
             if ($this->configuredCountryCode) {
@@ -420,22 +557,38 @@ class AddressField extends Field
         $current = $this->getState() ?? [];
 
         if ($preserveSearch) {
-            $snapshot['search_query'] = $current['search_query'] ?? ($snapshot['search_query'] ?? '');
+            $snapshot['search_query'] =
+                $current['search_query'] ?? ($snapshot['search_query'] ?? '');
         } else {
             $snapshot['search_query'] = $snapshot['search_query'] ?? '';
         }
 
+        $addressTypeValue = $snapshot['address_type']
+            ?? $current['address_type']
+            ?? AddressTypeEnum::UNVERIFIED->value;
+
+        $currentStateValue = $snapshot['current_state'] ?? null;
+        if (blank($currentStateValue) && $addressTypeValue !== AddressTypeEnum::UNVERIFIED->value) {
+            $currentStateValue = AddressStateEnum::CONFIRMED->value;
+        }
+
         $merged = array_replace($current, [
             'search_query' => $snapshot['search_query'],
-            'current_state' => $snapshot['current_state'] ?? AddressStateEnum::IDLE->value,
+            'current_state' => $currentStateValue ?? AddressStateEnum::IDLE->value,
             'input_mode' => $snapshot['input_mode'] ?? InputModeEnum::SEARCH->value,
-            'address_type' => $snapshot['address_type'] ?? null,
+            'address_type' => $addressTypeValue,
             'suggestions' => $snapshot['suggestions'] ?? [],
             'selected_suggestion' => $snapshot['selected_suggestion'] ?? null,
-            'manual_fields' => array_replace($current['manual_fields'] ?? [], $snapshot['manual_fields'] ?? []),
-            'coordinates' => array_replace($current['coordinates'] ?? [], $snapshot['coordinates'] ?? []),
+            'manual_fields' => array_replace(
+                $current['manual_fields'] ?? [],
+                $snapshot['manual_fields'] ?? [],
+            ),
+            'coordinates' => array_replace(
+                $current['coordinates'] ?? [],
+                $snapshot['coordinates'] ?? [],
+            ),
             'locked_fields' => $snapshot['locked_fields'] ?? [],
-             'source_field_locks' => $snapshot['source_field_locks'] ?? [],
+            'source_field_locks' => $snapshot['source_field_locks'] ?? [],
             'auto_select_alert' => $snapshot['auto_select_alert'] ?? false,
             'messages' => $snapshot['messages'] ?? ['errors' => [], 'warnings' => []],
             'confidence_score' => $snapshot['confidence_score'] ?? null,
@@ -449,14 +602,19 @@ class AddressField extends Field
             'coordinates_sync_token' => $merged['control']['coordinates_sync_token'] ?? null,
         ]);
 
-        $merged['ui'] = array_replace([
-            'pin_confirming' => data_get($current, 'ui.pin_confirming', false),
-        ], $current['ui'] ?? []);
+        $merged['ui'] = array_replace(
+            [
+                'pin_confirming' => data_get($current, 'ui.pin_confirming', false),
+            ],
+            $current['ui'] ?? [],
+        );
 
         $merged['live'] = array_replace($merged['live'] ?? [], [
             'search_query' => $snapshot['search_query'] ?? '',
             'suggestions' => $snapshot['suggestions'] ?? [],
-            'selected_place_id' => $snapshot['selected_suggestion']['place_id'] ?? $snapshot['selected_place_id'] ?? null,
+            'selected_place_id' =>
+                $snapshot['selected_suggestion']['place_id'] ??
+                ($snapshot['selected_place_id'] ?? null),
             'selected_suggestion' => $snapshot['selected_suggestion'] ?? null,
         ]);
 
@@ -571,17 +729,41 @@ class AddressField extends Field
         $latitude = (float) data_get($state, 'coordinates.latitude', 0.0);
         $longitude = (float) data_get($state, 'coordinates.longitude', 0.0);
 
+        if (config('app.debug')) {
+            Log::debug('AddressField: handleCoordinatesSync:start', [
+                'statePath' => $this->getStatePath(),
+                'latitude' => $latitude,
+                'longitude' => $longitude,
+            ]);
+        }
+
         $this->resolveManager()->updateCoordinates($latitude, $longitude, true);
         $this->applySnapshotFromManager();
+
+        if (config('app.debug')) {
+            Log::debug('AddressField: handleCoordinatesSync:end', [
+                'statePath' => $this->getStatePath(),
+                'state_coordinates' => data_get($this->getState(), 'coordinates'),
+            ]);
+        }
     }
 
     protected function confirmPin(): void
     {
-        $state = $this->getState() ?? [];
-        $lat = data_get($state, 'pin.latitude');
-        $lng = data_get($state, 'pin.longitude');
+        Log::debug('[TIME] confirmPin PHP START', [
+            'time' => microtime(true),
+        ]);
 
-        if (! is_numeric($lat) || ! is_numeric($lng)) {
+        $state = $this->getState() ?? [];
+        $lat = data_get($state, 'coordinates.latitude');
+        $lng = data_get($state, 'coordinates.longitude');
+
+        Log::debug('CONFIRM PIN CALLED', [
+            'coord_lat' => data_get($state, 'coordinates.latitude'),
+            'coord_lng' => data_get($state, 'coordinates.longitude'),
+        ]);
+
+        if (!is_numeric($lat) || !is_numeric($lng)) {
             $this->resetControlToken('confirm_pin_token');
 
             return;
@@ -589,6 +771,15 @@ class AddressField extends Field
 
         $latitude = (float) $lat;
         $longitude = (float) $lng;
+
+        Log::info('addr:field:pin:invoke', [
+            'statePath' => $this->getStatePath(),
+            'addressType' => data_get($state, 'address_type'),
+            'coordinates' => [
+                'lat' => $latitude,
+                'lng' => $longitude,
+            ],
+        ]);
 
         $this->setUiFlag('pin_confirming', true);
 
@@ -604,14 +795,14 @@ class AddressField extends Field
                 $reverse = null;
             }
 
-        if ($reverse) {
-            $rawPayload = $reverse->meta['raw'] ?? $reverse->meta['raw_payload'] ?? [];
+            if ($reverse) {
+                $rawPayload = $reverse->meta['raw'] ?? ($reverse->meta['raw_payload'] ?? []);
 
-                if (! is_array($rawPayload)) {
+                if (!is_array($rawPayload)) {
                     $rawPayload = [];
                 }
 
-                if (! isset($rawPayload['address']) && isset($reverse->meta['address'])) {
+                if (!isset($rawPayload['address']) && isset($reverse->meta['address'])) {
                     $rawPayload['address'] = $reverse->meta['address'];
                 }
 
@@ -626,19 +817,114 @@ class AddressField extends Field
                 $mapped['latitude'] = $reverse->latitude;
                 $mapped['longitude'] = $reverse->longitude;
 
-            $hasNumber = filled($mapped['street_number'] ?? null);
-            $this->ingestPinResult($mapped, $hasNumber ? AddressTypeEnum::VERIFIED : AddressTypeEnum::LOW_CONFIDENCE);
-        } else {
-            $this->ingestPinFallback($latitude, $longitude);
-        }
+                $hasNumber = filled($mapped['street_number'] ?? null);
+                $addressType = $hasNumber
+                    ? AddressTypeEnum::VERIFIED
+                    : AddressTypeEnum::LOW_CONFIDENCE;
+                Log::info('addr:field:pin:reverse', [
+                    'statePath' => $this->getStatePath(),
+                    'addressType' => $addressType->value,
+                    'city' => $mapped['city'] ?? null,
+                    'street' => $mapped['street_name'] ?? null,
+                    'number' => $mapped['street_number'] ?? null,
+                ]);
 
-        $this->markSelectionMade();
+                Log::debug('[STATE] BEFORE ingestPinResult', [
+                    'statePath' => $this->getStatePath(),
+                    'current_manual_fields' => data_get($this->getState(), 'manual_fields'),
+                ]);
+
+                $this->ingestPinResult(
+                    $mapped,
+                    $addressType,
+                );
+
+                Log::debug('[STATE] AFTER ingestPinResult', [
+                    'statePath' => $this->getStatePath(),
+                    'new_manual_fields' => data_get($this->getState(), 'manual_fields'),
+                ]);
+            } else {
+                Log::info('addr:field:pin:fallback', [
+                    'statePath' => $this->getStatePath(),
+                    'latitude' => $latitude,
+                    'longitude' => $longitude,
+                ]);
+
+                Log::debug('[STATE] BEFORE ingestPinFallback', [
+                    'statePath' => $this->getStatePath(),
+                    'current_manual_fields' => data_get($this->getState(), 'manual_fields'),
+                ]);
+
+                $this->ingestPinFallback($latitude, $longitude);
+
+                Log::debug('[STATE] AFTER ingestPinFallback', [
+                    'statePath' => $this->getStatePath(),
+                    'new_manual_fields' => data_get($this->getState(), 'manual_fields'),
+                ]);
+            }
+
+            $this->markSelectionMade();
+            $this->applySnapshotFromManager();
+
+            if (config('app.debug')) {
+                $finalState = $this->getState();
+                Log::debug('confirmPin: final state after applySnapshot', [
+                    'statePath' => $this->getStatePath(),
+                    'manual_fields' => data_get($finalState, 'manual_fields'),
+                    'coordinates' => data_get($finalState, 'coordinates'),
+                    'address_type' => data_get($finalState, 'address_type'),
+                ]);
+            }
         } finally {
             $this->setUiFlag('pin_confirming', false);
 
-            $this->togglePinMode('search');
             $this->resetControlToken('confirm_pin_token');
+            $stateBeforeNotify = $this->getState();
+            $snapshot = $this->resolveManager()->getStateSnapshot();
+            $mergedState = $stateBeforeNotify ?? [];
+
+            if (is_array($snapshot)) {
+                $mergedState['address_type'] = $snapshot['address_type'] ?? ($mergedState['address_type'] ?? null);
+                $mergedState['current_state'] = $snapshot['current_state'] ?? ($mergedState['current_state'] ?? null);
+                $mergedState['confidence_score'] = $snapshot['confidence_score'] ?? ($mergedState['confidence_score'] ?? null);
+            }
+
+            Log::debug('[STATE] before state(..., true)', [
+                'statePath' => $this->getStatePath(),
+                'manual_fields' => data_get($mergedState, 'manual_fields'),
+                'address_type' => $mergedState['address_type'] ?? null,
+                'current_state' => $mergedState['current_state'] ?? null,
+            ]);
+
+            Log::debug('[FIX] state before notify with address_type', [
+                'statePath' => $this->getStatePath(),
+                'address_type' => $mergedState['address_type'] ?? null,
+                'current_state' => $mergedState['current_state'] ?? null,
+                'confidence_score' => $mergedState['confidence_score'] ?? null,
+            ]);
+
+            $this->state($mergedState, true);
+
+            Log::debug('[STATE] after state(..., true) - should trigger Livewire', [
+                'statePath' => $this->getStatePath(),
+            ]);
+
+            if (config('app.debug')) {
+                $stateSnapshot = $this->getState();
+
+                Log::debug('AddressField: after confirmPin', [
+                    'statePath' => $this->getStatePath(),
+                    'manual_fields' => data_get($stateSnapshot, 'manual_fields'),
+                    'address_type' => data_get($stateSnapshot, 'address_type'),
+                    'coordinates' => data_get($stateSnapshot, 'coordinates'),
+                    'messages' => data_get($stateSnapshot, 'messages'),
+                ]);
+            }
         }
+
+        Log::debug('[TIME] confirmPin PHP END', [
+            'time' => microtime(true),
+        ]);
     }
 
     /**
@@ -647,30 +933,37 @@ class AddressField extends Field
      */
     protected function mapSuggestionPayload(array $payload): array
     {
-        $raw = $payload['raw_payload'] ?? $payload['raw'] ?? null;
-        if (! is_array($raw)) {
+        $raw = $payload['raw_payload'] ?? ($payload['raw'] ?? null);
+        if (!is_array($raw)) {
             $raw = [];
         }
 
-        if (! isset($raw['address']) && isset($payload['address']) && is_array($payload['address'])) {
+        if (
+            !isset($raw['address']) &&
+            isset($payload['address']) &&
+            is_array($payload['address'])
+        ) {
             $raw['address'] = $payload['address'];
         }
 
         $placeId = (string) ($payload['place_id'] ?? ($raw['place_id'] ?? Str::uuid()->toString()));
-        $displayName = $payload['display_name'] ?? $payload['formatted_address'] ?? ($raw['display_name'] ?? '');
+        $displayName =
+            $payload['display_name'] ??
+            ($payload['formatted_address'] ?? ($raw['display_name'] ?? ''));
 
         $raw = array_merge($raw, [
             'place_id' => $placeId,
             'display_name' => $displayName,
-            'lat' => $payload['latitude'] ?? $payload['lat'] ?? ($raw['lat'] ?? null),
-            'lon' => $payload['longitude'] ?? $payload['lon'] ?? ($raw['lon'] ?? null),
+            'lat' => $payload['latitude'] ?? ($payload['lat'] ?? ($raw['lat'] ?? null)),
+            'lon' => $payload['longitude'] ?? ($payload['lon'] ?? ($raw['lon'] ?? null)),
         ]);
 
         $mapped = $this->getNormalizer()->mapProviderSuggestion($raw);
 
         $mapped['place_id'] = $placeId;
-        $mapped['formatted_address'] = $payload['formatted_address']
-            ?? ($mapped['formatted_address'] ?? $mapped['short_address_line'] ?? $displayName);
+        $mapped['formatted_address'] =
+            $payload['formatted_address'] ??
+            ($mapped['formatted_address'] ?? ($mapped['short_address_line'] ?? $displayName));
 
         if (isset($payload['city'])) {
             $mapped['city'] = $payload['city'];
@@ -692,22 +985,24 @@ class AddressField extends Field
             $mapped['country_code'] = Str::lower((string) $payload['country_code']);
         }
 
-        $mapped['latitude'] = isset($payload['latitude']) && is_numeric($payload['latitude'])
-            ? (float) $payload['latitude']
-            : ($mapped['latitude'] ?? null);
-        $mapped['longitude'] = isset($payload['longitude']) && is_numeric($payload['longitude'])
-            ? (float) $payload['longitude']
-            : ($mapped['longitude'] ?? null);
+        $mapped['latitude'] =
+            isset($payload['latitude']) && is_numeric($payload['latitude'])
+                ? (float) $payload['latitude']
+                : $mapped['latitude'] ?? null;
+        $mapped['longitude'] =
+            isset($payload['longitude']) && is_numeric($payload['longitude'])
+                ? (float) $payload['longitude']
+                : $mapped['longitude'] ?? null;
 
         if (isset($mapped['country_code'])) {
             $mapped['country_code'] = Str::lower((string) $mapped['country_code']);
         }
 
-        if (! isset($mapped['street_name']) && isset($mapped['street'])) {
+        if (!isset($mapped['street_name']) && isset($mapped['street'])) {
             $mapped['street_name'] = $mapped['street'];
         }
 
-        if (! isset($mapped['street_number']) && isset($mapped['house_number'])) {
+        if (!isset($mapped['street_number']) && isset($mapped['house_number'])) {
             $mapped['street_number'] = $mapped['house_number'];
         }
 
@@ -728,7 +1023,7 @@ class AddressField extends Field
 
         $hasStreet = filled($mapped['street_name'] ?? null);
         $hasNumber = filled($mapped['street_number'] ?? null);
-        if ($hasStreet && ! $hasNumber) {
+        if ($hasStreet && !$hasNumber) {
             $manager->forceAddressType(AddressTypeEnum::LOW_CONFIDENCE);
         }
 
@@ -738,12 +1033,36 @@ class AddressField extends Field
 
     protected function ingestPinResult(array $mapped, AddressTypeEnum $addressType): void
     {
+        Log::debug('[STATE] ingestPinResult received', [
+            'statePath' => $this->getStatePath(),
+            'mapped_city' => $mapped['city'] ?? null,
+            'mapped_street' => $mapped['street_name'] ?? null,
+            'mapped_number' => $mapped['street_number'] ?? null,
+            'addressType' => $addressType->value,
+        ]);
+
         $this->ingestMappedSuggestion($mapped);
+
+        Log::debug('[STATE] after ingestMappedSuggestion', [
+            'statePath' => $this->getStatePath(),
+            'state_manual_fields' => data_get($this->getState(), 'manual_fields'),
+        ]);
 
         $manager = $this->resolveManager();
         $manager->forceAddressType($addressType);
         $manager->markConfirmed();
+
+        Log::debug('[STATE] after manager operations', [
+            'statePath' => $this->getStatePath(),
+            'manager_snapshot_manual_fields' => data_get($manager->getStateSnapshot(), 'manual_fields'),
+        ]);
+
         $this->applySnapshotFromManager();
+
+        Log::debug('[STATE] after applySnapshotFromManager', [
+            'statePath' => $this->getStatePath(),
+            'final_state_manual_fields' => data_get($this->getState(), 'manual_fields'),
+        ]);
     }
 
     protected function ingestPinFallback(float $latitude, float $longitude): void
@@ -768,7 +1087,7 @@ class AddressField extends Field
 
     protected function getNormalizer(): GeoNormalizer
     {
-        if (! $this->normalizer) {
+        if (!$this->normalizer) {
             $this->normalizer = app(GeoNormalizer::class);
         }
 
@@ -777,7 +1096,7 @@ class AddressField extends Field
 
     protected function getGeocoder(): GeocodingServiceInterface
     {
-        if (! $this->geocoder) {
+        if (!$this->geocoder) {
             $this->geocoder = app(GeocodingServiceInterface::class);
         }
 
@@ -808,13 +1127,13 @@ class AddressField extends Field
 
     protected function resetSelectionErrors(): void
     {
-        if (! method_exists($this, 'getLivewire')) {
+        if (!method_exists($this, 'getLivewire')) {
             return;
         }
 
         $livewire = $this->getLivewire();
 
-        if (! $livewire || ! method_exists($livewire, 'resetErrorBag')) {
+        if (!$livewire || !method_exists($livewire, 'resetErrorBag')) {
             return;
         }
 
@@ -848,12 +1167,19 @@ class AddressField extends Field
         }
 
         return collect($suggestions)
-            ->filter(fn (array $item): bool => isset($item['place_id']))
-            ->mapWithKeys(fn (array $item): array => [
-                $item['place_id'] => $item['short_address_line']
-                    ?? $item['formatted_address']
-                    ?? sprintf('%s, %s', $item['street_name'] ?? 'Nežinoma', $item['city'] ?? ''),
-            ])
+            ->filter(fn(array $item): bool => isset($item['place_id']))
+            ->mapWithKeys(
+                fn(array $item): array => [
+                    $item['place_id'] =>
+                        $item['short_address_line'] ??
+                        ($item['formatted_address'] ??
+                            sprintf(
+                                '%s, %s',
+                                $item['street_name'] ?? 'Nežinoma',
+                                $item['city'] ?? '',
+                            )),
+                ],
+            )
             ->all();
     }
 
@@ -863,7 +1189,7 @@ class AddressField extends Field
     {
         $locks = $get('source_field_locks');
 
-        if (! is_array($locks)) {
+        if (!is_array($locks)) {
             return false;
         }
 
@@ -872,8 +1198,6 @@ class AddressField extends Field
 
     protected function getSourceLockHint(Get $get, string $field): ?string
     {
-        return $this->isSourceFieldLocked($get, $field)
-            ? '🔒 Locked by Source'
-            : null;
+        return $this->isSourceFieldLocked($get, $field) ? '🔒 Locked by Source' : null;
     }
 }
