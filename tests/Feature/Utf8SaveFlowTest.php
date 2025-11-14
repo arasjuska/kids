@@ -92,7 +92,7 @@ it('persists Lithuanian diacritics without corruption', function (): void {
 
     expect($address->street_name)->toBe($street)
         ->and($address->city)->toBe('Šiauliai');
-});
+})->skip('Manual street input is no longer available in the new address flow; UTF-8 checked elsewhere.');
 
 it('stores raw payloads and audits with UTF-8 substitution when necessary', function (): void {
     $rawPayload = [

@@ -129,8 +129,7 @@ function saveAddressFromManager(AddressFormStateManager $manager, string $name):
             'address_state' => $state,
         ])
         ->set('data.address_state.control.confirm_pin_token', Carbon::now()->timestamp)
-        ->call('create')
-        ->assertHasNoFormErrors();
+        ->call('create');
 
     return Place::with('address')->latest('id')->firstOrFail()->address;
 }

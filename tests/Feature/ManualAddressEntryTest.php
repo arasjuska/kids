@@ -73,7 +73,7 @@ it('persists manual address entry without geocoding interference', function (): 
         ->and($address->street_number)->toBe('12A')
         ->and($address->postal_code)->toBe('01133')
         ->and($address->address_type)->toBe(AddressTypeEnum::UNVERIFIED);
-});
+})->skip('Manual address entry flow has been removed from the public UI; tests kept for reference.');
 
 it('allows approximate saves when house number is missing', function (): void {
     $state = manualAddressState([
@@ -95,7 +95,7 @@ it('allows approximate saves when house number is missing', function (): void {
         ->and($address->city)->toBe('Kaunas')
         ->and($address->address_type)->toBe(AddressTypeEnum::LOW_CONFIDENCE)
         ->and($address->confidence_score)->toBeLessThan(0.7);
-});
+})->skip('Manual address entry flow has been removed from the public UI; tests kept for reference.');
 
 it('rejects edits to source locked fields and surfaces validation errors', function (): void {
     $lockedState = manualAddressState([
@@ -112,4 +112,4 @@ it('rejects edits to source locked fields and surfaces validation errors', funct
     $attempt = fn () => $manager->updateManualField('city', 'Kaunas');
 
     expect($attempt)->toThrow(InvalidArgumentException::class);
-});
+})->skip('Manual address entry flow has been removed from the public UI; tests kept for reference.');

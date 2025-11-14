@@ -5,19 +5,17 @@ namespace App\Filament\Resources\Places\Pages;
 use App\Enums\AddressStateEnum;
 use App\Enums\AddressTypeEnum;
 use App\Enums\InputModeEnum;
+use App\Filament\Resources\Places\Pages\Concerns\HandlesAddressSnapshots;
 use App\Filament\Resources\Places\PlaceResource;
-use App\Http\Requests\AddressRequest;
-use App\Services\AddressFormStateManager;
-use App\Support\AddressPayloadBuilder;
 use Filament\Actions\DeleteAction;
 use Filament\Resources\Pages\EditRecord;
 use Illuminate\Database\Eloquent\Model;
-use Illuminate\Support\Facades\Log;
-use Illuminate\Validation\ValidationException;
 
 class EditPlace extends EditRecord
 {
     protected static string $resource = PlaceResource::class;
+
+    use HandlesAddressSnapshots;
 
     protected ?array $addressPayloadForUpdate = null;
 
@@ -77,51 +75,14 @@ class EditPlace extends EditRecord
 
     protected function mutateFormDataBeforeSave(array $data): array
     {
-        Log::debug('[TIME] mutateFormDataBeforeSave', [
-            'time' => microtime(true),
-            'city' => $data['address_state']['manual_fields']['city'] ?? 'MISSING',
-        ]);
-
-        if (config('app.debug')) {
-            Log::debug('EditPlace: mutateFormDataBeforeSave:start', [
-                'address_state_FULL' => isset($data['address_state'])
-                    ? json_encode(
-                        $data['address_state'],
-                        JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE,
-                    )
-                    : null,
-            ]);
-        }
-
-        $this->addressPayloadForUpdate = null;
-
-        $addressState = $data['address_state'] ?? null;
-        if (!is_array($addressState)) {
-            return $data;
-        }
-
-        /** @var AddressFormStateManager $manager */
-        $manager = app(AddressFormStateManager::class);
-        $manager->restoreState($addressState);
-
-        $validationResult = $manager->validateAndPrepareForSubmission();
-
-        if (!empty($validationResult['errors'])) {
-            throw ValidationException::withMessages([
-                'form' => $validationResult['errors'],
-            ]);
-        }
-
-        $normalized = AddressRequest::normalizePayload($validationResult['data']);
-        $this->addressPayloadForUpdate = $this->buildAddressPayload($normalized);
-
+        $addressSnapshot = $data['address_state'] ?? [];
         unset($data['address_state']);
 
-        if (config('app.debug')) {
-            Log::debug('EditPlace: transformed data', [
-                'address' => $this->addressPayloadForUpdate,
-            ]);
-        }
+        $payload = $this->resolveAddressPayloadFromSnapshot($addressSnapshot);
+        $payload['source_locked'] = false;
+        $payload['override_reason'] = 'Address updated via map pin confirmation';
+
+        $this->addressPayloadForUpdate = $payload;
 
         return $data;
     }
@@ -144,12 +105,4 @@ class EditPlace extends EditRecord
         return [DeleteAction::make()];
     }
 
-    private function buildAddressPayload(array $addressData): array
-    {
-        $payload = AddressPayloadBuilder::fromNormalized($addressData);
-        $payload['source_locked'] = false;
-        $payload['override_reason'] = 'Address updated via map pin confirmation';
-
-        return $payload;
-    }
 }
